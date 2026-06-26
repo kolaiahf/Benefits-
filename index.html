@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>MMA Benefits</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #F7F3EE; }
+  body { min-height: 100vh; }
+  #root { min-height: 100vh; }
+</style>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+"use strict";
+const { useState, useRef, useEffect, useCallback } = React;
+// ── MARSH AGENCY BRAND ───────────────────────────────────────────────────────────
+const SERIF = "Georgia, 'Times New Roman', serif";
+const SH = "0 1px 2px rgba(0,15,71,.05), 0 14px 30px -16px rgba(0,15,71,.22)";
+const C = {
+    paper: "#F7F3EE", surface: "#FFFFFF",
+    ink: "#000F47", ink2: "#3D3C37", grey: "#7B7974", greyLt: "#B9B6B1",
+    line: "#E8E2D8", faint: "#F0EBE2",
+    sky: "#CEECFF", blue: "#82BAFF", action: "#0B4BFF", gold: "#FFBF00", goldDeep: "#CB7E03",
+    accent: "#000F47", accentSoft: "#82BAFF",
+};
+// Marsh "M" mark as a crisp inline SVG (white), renders sharp at any size on the navy brand.
+const M_WHITE = "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Cpath%20d='M10%2084V16h16l24%2042%2024-42h16v68H70V44L52%2076h-4L30%2044v40z'%20fill='white'/%3E%3C/svg%3E";
+// ── HOUSEHOLD ──────────────────────────────────────────────────────────────────
+const HOUSEHOLD = [
+    { id: "self", name: "Kolaiah Frazier", first: "Kolaiah", initials: "KF", rel: "Primary", memberId: "BSC-4821-KF", ded: { used: 850, total: 1500 }, oop: { used: 1240, total: 4000 } },
+    { id: "spouse", name: "Jordan Frazier", first: "Jordan", initials: "JF", rel: "Spouse", memberId: "BSC-4821-JF", ded: { used: 1500, total: 1500 }, oop: { used: 2100, total: 4000 } },
+    { id: "child", name: "Maya Frazier", first: "Maya", initials: "MF", rel: "Dependent · Age 9", memberId: "BSC-4821-MF", ded: { used: 300, total: 1500 }, oop: { used: 300, total: 4000 } },
+];
+const FAMILY = { ded: { used: 2650, total: 3000 }, oop: { used: 3640, total: 8000 } };
+const byId = (id) => HOUSEHOLD.find(m => m.id === id);
+const PLAN = { name: "Blue Shield PPO Gold", group: "MMA-SD-2026", effective: "01 / 01 / 2026", tier: "Family", phone: "1-800-393-6130" };
+const COPAYS = [
+    { label: "Primary Care", cost: "$25", note: "In-network" }, { label: "Specialist", cost: "$50", note: "No referral needed" },
+    { label: "Urgent Care", cost: "$75", note: "In-network" }, { label: "Emergency Room", cost: "$300", note: "Waived if admitted" },
+    { label: "Telehealth", cost: "$0", note: "Via Teladoc · 24/7" }, { label: "Mental Health", cost: "$50", note: "Per session · 30/yr" },
+    { label: "Generic Rx", cost: "$10", note: "Tier 1 formulary" }, { label: "Brand Rx", cost: "$45", note: "Tier 2 formulary" },
+    { label: "Lab / Bloodwork", cost: "20%", note: "After deductible" }, { label: "Imaging (MRI/CT)", cost: "20%", note: "After deductible" },
+    { label: "Physical Therapy", cost: "$50", note: "30 visits/year" }, { label: "Chiropractic", cost: "$50", note: "20 visits/year" },
+];
+const BENEFITS = [
+    { label: "Preventive Care", detail: "Annual physicals, screenings, vaccines", status: "full" },
+    { label: "Telehealth", detail: "Available 24/7 via Teladoc", status: "full" },
+    { label: "Mental Health", detail: "30 sessions/year in-network", status: "full" },
+    { label: "Maternity Care", detail: "Prenatal, delivery, postpartum", status: "full" },
+    { label: "Lab & Bloodwork", detail: "20% coinsurance after deductible", status: "partial" },
+    { label: "Imaging (MRI/CT)", detail: "20% coinsurance after deductible", status: "partial" },
+    { label: "Physical Therapy", detail: "$50 copay · 30 visits/year", status: "partial" },
+    { label: "Durable Equipment", detail: "20% coinsurance with prior auth", status: "partial" },
+    { label: "Dental", detail: "Delta Dental plan — see Benefits", status: "none" },
+    { label: "Vision", detail: "VSP plan — see Benefits", status: "none" },
+    { label: "Cosmetic Procedures", detail: "Not covered", status: "none" },
+];
+const PRIOR_AUTH = [
+    { service: "MRI / CT Imaging", required: true, note: "Required before scheduling" },
+    { service: "Outpatient Surgery", required: true, note: "Obtain 5+ days in advance" },
+    { service: "Specialty Infusions", required: true, note: "Required before treatment" },
+    { service: "Durable Medical Equipment", required: true, note: "Over $500" },
+    { service: "Physical Therapy", required: false, note: "Up to 30 visits/year" },
+    { service: "Specialist Visits", required: false, note: "No referral needed" },
+];
+const CLAIMS = [
+    { who: "self", date: "Jun 3, 2026", provider: "Sharp Rees-Stealy", service: "Office Visit — PCP", billed: 320, plan: 295, you: 25 },
+    { who: "self", date: "May 18, 2026", provider: "Quest Diagnostics", service: "Lab Panel", billed: 480, plan: 384, you: 96 },
+    { who: "self", date: "May 2, 2026", provider: "CVS Pharmacy", service: "Generic Rx — Lisinopril", billed: 28, plan: 18, you: 10 },
+    { who: "child", date: "Apr 14, 2026", provider: "AFC Urgent Care", service: "Urgent Care Visit", billed: 290, plan: 215, you: 75 },
+    { who: "spouse", date: "Apr 1, 2026", provider: "West Dermatology", service: "Specialist Visit", billed: 410, plan: 360, you: 50 },
+    { who: "spouse", date: "Mar 20, 2026", provider: "Scripps Health", service: "MRI — Right Knee", billed: 2400, plan: 1920, you: 480 },
+];
+const CARE_CATS = [
+    { id: "pcp", label: "Primary Care", copay: "$25" }, { id: "cardio", label: "Cardiology", copay: "$50" },
+    { id: "urgent", label: "Urgent Care", copay: "$75" }, { id: "derm", label: "Dermatology", copay: "$50" },
+    { id: "mental", label: "Mental Health", copay: "$50" }, { id: "ortho", label: "Orthopedics", copay: "$50" },
+];
+const PROVIDERS = {
+    pcp: [
+        { name: "Dr. Michelle Cao, MD", org: "Sharp Rees-Stealy Point Loma", addr: "3555 Kenyon St, San Diego, CA 92110", phone: "+18584992712", rating: 5.0, reviews: 205, hours: "Mon–Fri · 8am–5pm", lat: 32.7498881, lng: -117.2162129 },
+        { name: "Dr. Pany T. Robinson, MD", org: "Sharp Rees-Stealy Rancho Bernardo", addr: "16899 W Bernardo Dr, San Diego, CA 92127", phone: "+18584992705", rating: 5.0, reviews: 347, hours: "Mon–Fri · 8am–5pm", lat: 33.0216189, lng: -117.0800518 },
+        { name: "Perlman Wellness", org: "Integrative Primary Care", addr: "3900 Fifth Ave #340, San Diego, CA 92103", phone: "+18582500286", rating: 4.9, reviews: 1072, hours: "Mon–Fri · 6:30am–10pm", lat: 32.7485501, lng: -117.1608955 },
+    ],
+    cardio: [
+        { name: "Cardiovascular Institute of SD", org: "Cardiology", addr: "286 Euclid Ave #204, San Diego, CA 92114", phone: "+16196162100", rating: 4.8, reviews: 372, hours: "Mon–Fri · 8am–5pm", lat: 32.7071549, lng: -117.085522 },
+        { name: "Cardiovascular Institute — Chula Vista", org: "Cardiology", addr: "765 Medical Center Ct #211, Chula Vista, CA 91911", phone: "+16196162100", rating: 4.9, reviews: 959, hours: "Mon–Fri · 8am–5pm", lat: 32.6190902, lng: -117.0208458 },
+        { name: "San Diego Heart & Vascular", org: "Cardiology", addr: "501 Washington St, San Diego, CA 92103", phone: "+16192970014", rating: 4.8, reviews: 138, hours: "Mon–Fri · 8am–5pm", lat: 32.7497219, lng: -117.1600447 },
+    ],
+    urgent: [
+        { name: "Sharp Rees-Stealy Downtown", org: "Urgent Care", addr: "300 Fir St Fl 2, San Diego, CA 92101", phone: "+16194461575", rating: 4.8, reviews: 1250, hours: "Daily · 8am–8pm", lat: 32.7259856, lng: -117.1614875 },
+        { name: "AFC Urgent Care Mission Valley", org: "Urgent Care", addr: "8590 Rio San Diego Dr #111, San Diego, CA 92108", phone: "+16197364600", rating: 4.5, reviews: 2171, hours: "Mon–Fri · 8am–8pm", lat: 32.776211, lng: -117.1446948 },
+        { name: "AFC Urgent Care Clairemont", org: "Urgent Care", addr: "5671 Balboa Ave, San Diego, CA 92111", phone: "+18588002880", rating: 4.3, reviews: 1412, hours: "Mon–Fri · 8am–8pm", lat: 32.8192051, lng: -117.1786902 },
+    ],
+    derm: [
+        { name: "West Dermatology Mission Valley", org: "Dermatology", addr: "9095 Rio San Diego Dr #300, San Diego, CA 92108", phone: "+16197548610", rating: 4.6, reviews: 2463, hours: "Mon–Fri · 8am–5pm", lat: 32.7752736, lng: -117.1358377 },
+        { name: "MedDerm Dermatology", org: "Dermatology", addr: "3965 Fifth Ave #200, San Diego, CA 92103", phone: "+16195420013", rating: 4.8, reviews: 489, hours: "Mon–Fri · 8am–4pm", lat: 32.749316, lng: -117.1598558 },
+        { name: "The Skin Clinic MD", org: "Dr. Seaver L. Soon", addr: "3737 Fourth Ave, San Diego, CA 92103", phone: "+16192990700", rating: 4.9, reviews: 322, hours: "Tue–Fri · 7am–5pm", lat: 32.745832, lng: -117.1614034 },
+    ],
+    mental: [
+        { name: "Healthy Minds Counseling", org: "Mental Health", addr: "591 Camino De La Reina #210, San Diego, CA 92108", phone: "+16192065271", rating: 4.9, reviews: 57, hours: "Mon–Fri · 8am–6pm", lat: 32.7656347, lng: -117.1615676 },
+        { name: "Clear Mind Counseling", org: "Mental Health / Therapy", addr: "3655 Nobel Dr #400, San Diego, CA 92122", phone: "+18587507379", rating: 4.9, reviews: 94, hours: "Mon–Fri · 8am–5pm", lat: 32.8678223, lng: -117.2284889 },
+    ],
+    ortho: [
+        { name: "San Diego Orthopaedic Associates", org: "Orthopedic Surgery", addr: "4060 Fourth Ave 7th Fl, San Diego, CA 92103", phone: "+16192998500", rating: 4.8, reviews: 1215, hours: "Mon–Fri · 8:30am–5pm", lat: 32.7512217, lng: -117.1619436 },
+        { name: "California Orthopaedic Institute", org: "Orthopedics & Sports Medicine", addr: "7485 Mission Valley Rd #104a, San Diego, CA 92108", phone: "+16192918930", rating: 4.6, reviews: 455, hours: "Mon–Fri · 8am–5pm", lat: 32.7793195, lng: -117.1603142 },
+        { name: "Orthopedic Specialists of SD", org: "Orthopedics", addr: "5555 Reservoir Dr #104, San Diego, CA 92120", phone: "+16192864980", rating: 4.4, reviews: 22, hours: "Mon–Fri · 9am–5pm", lat: 32.7761679, lng: -117.0560086 },
+    ],
+};
+const HSA = { balance: 1850.42, ytdContrib: 2400, ytdSpend: 549.58, limit: 4150 };
+const DCFSA = { election: 5000, used: 1920, remaining: 3080 };
+const DOCS = [
+    { name: "Summary of Benefits & Coverage", date: "Jan 2026", type: "PDF" },
+    { name: "Explanation of Benefits — Jun 3", date: "Jun 2026", type: "EOB" },
+    { name: "Explanation of Benefits — May 18", date: "May 2026", type: "EOB" },
+    { name: "Dental Plan Certificate — Delta", date: "Jan 2026", type: "PDF" },
+    { name: "Prescription Drug Formulary", date: "Jan 2026", type: "PDF" },
+    { name: "2026 Enrollment Confirmation", date: "Nov 2025", type: "PDF" },
+];
+const COST_PROCEDURES = [
+    { label: "Annual Physical", cost: 0, note: "100% covered — preventive" }, { label: "Flu Shot", cost: 0, note: "100% covered — preventive" },
+    { label: "PCP Office Visit", cost: 25, note: "Flat copay" }, { label: "Specialist Visit", cost: 50, note: "Flat copay" },
+    { label: "Urgent Care Visit", cost: 75, note: "Flat copay" }, { label: "ER Visit", cost: 300, note: "Copay, waived if admitted" },
+    { label: "Blood Panel (Lab)", cost: 96, note: "20% of ~$480 billed" }, { label: "MRI — Single Joint", cost: 480, note: "20% of ~$2,400 billed" },
+    { label: "CT Scan", cost: 240, note: "20% of ~$1,200 billed" }, { label: "Outpatient Surgery", cost: 820, note: "Estimated 20% coinsurance" },
+    { label: "Generic Rx (30-day)", cost: 10, note: "Tier 1 copay" }, { label: "Brand Rx (30-day)", cost: 45, note: "Tier 2 copay" },
+];
+const PKG = {
+    medical: { name: "Medical", carrier: "Blue Shield PPO Gold", status: "enrolled", summary: "Your core health plan covering doctor visits, hospital care, labs, and imaging.", rows: [["Deductible (individual)", "$1,500"], ["Out-of-pocket max", "$4,000"], ["Coinsurance", "80 / 20"], ["PCP copay", "$25"], ["Specialist copay", "$50"]], call: "1-800-393-6130", web: "blueshieldca.com" },
+    pharmacy: { name: "Pharmacy", carrier: "Blue Shield Rx", status: "enrolled", summary: "Prescription drug coverage at in-network pharmacies and through mail order.", rows: [["Generic (Tier 1)", "$10"], ["Brand (Tier 2)", "$45"], ["Mail order 90-day", "$20"], ["RxBIN", "600428"], ["RxGRP", "BSCRX01"]], call: "1-888-792-7473", web: "" },
+    dental: { name: "Dental", carrier: "Delta Dental PPO", status: "enrolled", summary: "Preventive, basic, and major dental care plus orthodontia for the whole family.", rows: [["Deductible", "$50 / person"], ["Preventive (cleanings)", "100% covered"], ["Basic (fillings)", "80% covered"], ["Major (crowns)", "50% covered"], ["Annual maximum", "$1,500"], ["Orthodontia", "$1,500 lifetime"]], call: "1-800-765-6003", web: "deltadentalins.com" },
+    vision: { name: "Vision", carrier: "VSP Choice", status: "enrolled", summary: "Annual eye exams, lenses, frames, and contacts.", rows: [["Exam copay", "$10"], ["Frame allowance", "$150"], ["Lenses", "Covered in full"], ["Contacts allowance", "$150"], ["Frequency", "Every 12 months"]], call: "1-800-877-7195", web: "vsp.com" },
+    mental: { name: "Mental Health", carrier: "Lyra Health", status: "enrolled", summary: "Free therapy and coaching sessions plus self-guided programs — no referral needed.", rows: [["Sessions / year", "12 free"], ["Format", "In-person or video"], ["Covers", "Therapy, coaching, family"], ["Access", "Self-refer directly"]], call: "", web: "care.lyrahealth.com" },
+    eap: { name: "Employee Assistance", carrier: "ComPsych GuidanceResources", status: "enrolled", summary: "Confidential 24/7 support for life, work, legal, and financial questions.", rows: [["Counseling", "8 free sessions"], ["Legal consults", "Free 30-min"], ["Financial coaching", "Included"], ["Availability", "24 / 7 / 365"]], call: "1-877-595-5284", web: "" },
+    hsa: { name: "Health Savings Account", carrier: "HSA Bank", status: "enrolled", summary: "Tax-free dollars for qualified medical expenses. Funds roll over and grow.", rows: [["Balance", "$1,850.42"], ["2026 contributions", "$2,400"], ["IRS limit", "$4,150"]], call: "1-800-357-6246", web: "" },
+    dcfsa: { name: "Dependent Care FSA", carrier: "MMA Benefits", status: "enrolled", summary: "Pre-tax funds for childcare and dependent care so you and your spouse can work.", rows: [["2026 election", "$5,000"], ["Used", "$1,920"], ["Remaining", "$3,080"], ["Deadline", "Use by Dec 31"]], call: "1-800-393-6130", web: "" },
+    life: { name: "Life Insurance", carrier: "The Hartford", status: "enrolled", summary: "Employer-paid basic life coverage, with the option to add more.", rows: [["Basic life", "1× annual salary"], ["Cost", "Employer-paid"], ["Supplemental", "Up to 5× (optional)"], ["Beneficiary", "On file"]], call: "1-800-523-2233", web: "" },
+    disability: { name: "Disability", carrier: "The Hartford", status: "enrolled", summary: "Income protection if illness or injury keeps you from working.", rows: [["Short-term", "60% to $1,500/wk"], ["STD waiting period", "7 days"], ["Long-term", "60% to $10,000/mo"], ["LTD begins", "After 90 days"]], call: "1-800-523-2233", web: "" },
+    retirement: { name: "401(k) Retirement", carrier: "Fidelity", status: "enrolled", summary: "Retirement savings with an employer match that vests immediately.", rows: [["Employer match", "100% up to 4%"], ["Vesting", "Immediate"], ["Your contribution", "8% of pay"], ["Options", "Target-date + funds"]], call: "1-800-835-5097", web: "netbenefits.com" },
+    commuter: { name: "Commuter Benefits", carrier: "Available at open enrollment", status: "none", summary: "Set aside pre-tax dollars for transit and parking. Not currently enrolled.", rows: [["Transit", "Up to $315/mo pre-tax"], ["Parking", "Up to $315/mo pre-tax"]], call: "", web: "" },
+    legal: { name: "Legal & ID Protection", carrier: "Available at open enrollment", status: "none", summary: "Legal plan and identity-theft protection. Not currently enrolled.", rows: [["Legal plan", "Wills, disputes, more"], ["ID protection", "Monitoring + restoration"]], call: "", web: "" },
+};
+const GROUPS = [
+    { title: "Health", items: [{ id: "medical", route: "coverage" }, { label: "Medical copays", sub: "Visit & prescription costs", route: "copays", status: "enrolled" }, { id: "pharmacy", route: "detail" }, { id: "dental", route: "detail" }, { id: "vision", route: "detail" }, { id: "mental", route: "detail" }, { id: "eap", route: "detail" }] },
+    { title: "Spending accounts", items: [{ id: "hsa", route: "hsa" }, { id: "dcfsa", route: "fsa" }] },
+    { title: "Income protection", items: [{ id: "life", route: "detail" }, { id: "disability", route: "detail" }] },
+    { title: "Retirement", items: [{ id: "retirement", route: "detail" }] },
+    { title: "Not enrolled", items: [{ id: "commuter", route: "detail" }, { id: "legal", route: "detail" }] },
+];
+const AI_RESPONSES = {
+    "What does my deductible mean?": "Your individual deductible is $1,500 — what you pay before insurance shares costs. You've used $850 this year, leaving $650. Your family deductible is $3,000 and is nearly met at $2,650. Preventive care and most copays don't count against it.",
+    "How does coinsurance work?": "After you meet your deductible, costs split 80/20: your plan pays 80%, you pay 20%. A $2,400 MRI would cost you $480. Once you hit your $4,000 individual (or $8,000 family) out-of-pocket max, covered services are $0 for the rest of the year.",
+    "Is therapy covered?": "Two ways: your medical plan covers therapists at $50/visit in-network, and you also have 12 free sessions through Lyra Health with no referral. Use Find Care for in-network therapists or go straight to Lyra.",
+    "Do I have dental?": "Yes — Delta Dental PPO. Cleanings are 100% covered, fillings 80%, crowns 50%, with a $1,500 annual maximum per person and $1,500 lifetime orthodontia. See the Dental benefit for details and the customer service line.",
+    "What's covered preventive?": "Preventive care is 100% free: annual physicals, flu shots, cancer screenings, blood pressure checks, well-woman visits, and routine vaccines — regardless of your deductible.",
+    "I got a bill that looks wrong": "That's exactly what your benefits team is for. Head to Support and choose 'Help with a bill' — an advocate will review the charge against your plan and the provider's billing, and handle the dispute for you.",
+    "Do I have vision coverage?": "Yes — VSP Choice. It covers an annual eye exam for a $10 copay, lenses in full, and a $150 frame allowance (or $150 toward contacts), once every 12 months. Customer service: 1-800-877-7195.",
+    "How do I use my HSA?": "Your HSA balance is $1,850.42. Use it tax-free for copays, prescriptions, dental, vision, and other qualified expenses. You've contributed $2,400 of the $4,150 limit this year, and the balance rolls over and grows.",
+    "How do I find a doctor near me?": "Open the Find Care tab — it lists in-network primary care, specialists, urgent care, dermatology, mental health, and orthopedics near San Diego, each with your copay and one-tap directions.",
+};
+const PRESET_Q = Object.keys(AI_RESPONSES);
+// ── HOOKS / HELPERS ──────────────────────────────────────────────────────────────
+function useCountUp(target, dur = 950, run = true) {
+    const [v, setV] = useState(run ? 0 : target);
+    useEffect(() => {
+        if (!run) {
+            setV(target);
+            return;
+        }
+        let raf, start;
+        const tick = (t) => { if (!start)
+            start = t; const p = Math.min((t - start) / dur, 1); setV(target * (1 - Math.pow(1 - p, 3))); if (p < 1)
+            raf = requestAnimationFrame(tick); };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [target, dur, run]);
+    return v;
+}
+const money0 = (n) => "$" + Math.round(n).toLocaleString();
+const money2 = (n) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// ── ICONS ──────────────────────────────────────────────────────────────────────
+const Icon = ({ name, size = 20, color = C.ink, sw = 1.7 }) => {
+    const p = { stroke: color, strokeWidth: sw, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" };
+    const g = {
+        home: React.createElement(React.Fragment, null,
+            React.createElement("path", { ...p, d: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" }),
+            React.createElement("polyline", { ...p, points: "9 22 9 12 15 12 15 22" })),
+        layers: React.createElement(React.Fragment, null,
+            React.createElement("polygon", { ...p, points: "12 2 2 7 12 12 22 7 12 2" }),
+            React.createElement("polyline", { ...p, points: "2 17 12 22 22 17" }),
+            React.createElement("polyline", { ...p, points: "2 12 12 17 22 12" })),
+        search: React.createElement(React.Fragment, null,
+            React.createElement("circle", { ...p, cx: "11", cy: "11", r: "7.5" }),
+            React.createElement("path", { ...p, d: "M21 21l-4.3-4.3" })),
+        chat: React.createElement("path", { ...p, d: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" }),
+        life: React.createElement(React.Fragment, null,
+            React.createElement("circle", { ...p, cx: "12", cy: "12", r: "10" }),
+            React.createElement("circle", { ...p, cx: "12", cy: "12", r: "4" }),
+            React.createElement("line", { ...p, x1: "4.9", y1: "4.9", x2: "9.2", y2: "9.2" }),
+            React.createElement("line", { ...p, x1: "14.8", y1: "14.8", x2: "19.1", y2: "19.1" }),
+            React.createElement("line", { ...p, x1: "14.8", y1: "9.2", x2: "19.1", y2: "4.9" }),
+            React.createElement("line", { ...p, x1: "4.9", y1: "19.1", x2: "9.2", y2: "14.8" })),
+        user: React.createElement(React.Fragment, null,
+            React.createElement("path", { ...p, d: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" }),
+            React.createElement("circle", { ...p, cx: "12", cy: "7", r: "4" })),
+        shield: React.createElement("path", { ...p, d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" }),
+        card: React.createElement(React.Fragment, null,
+            React.createElement("rect", { ...p, x: "2", y: "5", width: "20", height: "14", rx: "2.5" }),
+            React.createElement("line", { ...p, x1: "2", y1: "10", x2: "22", y2: "10" })),
+        calc: React.createElement(React.Fragment, null,
+            React.createElement("rect", { ...p, x: "4", y: "3", width: "16", height: "18", rx: "2" }),
+            React.createElement("line", { ...p, x1: "8", y1: "8", x2: "16", y2: "8" }),
+            React.createElement("line", { ...p, x1: "8", y1: "12", x2: "16", y2: "12" }),
+            React.createElement("line", { ...p, x1: "8", y1: "16", x2: "12", y2: "16" })),
+        wallet: React.createElement(React.Fragment, null,
+            React.createElement("path", { ...p, d: "M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2" }),
+            React.createElement("path", { ...p, d: "M3 7v10a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5" }),
+            React.createElement("circle", { cx: "16.5", cy: "12.5", r: "1.2", fill: color })),
+        file: React.createElement(React.Fragment, null,
+            React.createElement("path", { ...p, d: "M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" }),
+            React.createElement("polyline", { ...p, points: "13 2 13 9 20 9" })),
+        receipt: React.createElement(React.Fragment, null,
+            React.createElement("path", { ...p, d: "M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17l-3-2-3 2-3-2-3 2z" }),
+            React.createElement("line", { ...p, x1: "9", y1: "8", x2: "15", y2: "8" }),
+            React.createElement("line", { ...p, x1: "9", y1: "12", x2: "15", y2: "12" })),
+        chevron: React.createElement("polyline", { ...p, points: "9 18 15 12 9 6" }),
+        map: React.createElement(React.Fragment, null,
+            React.createElement("path", { ...p, d: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" }),
+            React.createElement("circle", { ...p, cx: "12", cy: "10", r: "2.5" })),
+        download: React.createElement(React.Fragment, null,
+            React.createElement("path", { ...p, d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }),
+            React.createElement("polyline", { ...p, points: "7 10 12 15 17 10" }),
+            React.createElement("line", { ...p, x1: "12", y1: "15", x2: "12", y2: "3" })),
+        check: React.createElement("polyline", { ...p, points: "20 6 9 17 4 12" }),
+        phone: React.createElement("path", { ...p, d: "M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 0h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.4 2.1L8.1 7.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z" }),
+        globe: React.createElement(React.Fragment, null,
+            React.createElement("circle", { ...p, cx: "12", cy: "12", r: "10" }),
+            React.createElement("line", { ...p, x1: "2", y1: "12", x2: "22", y2: "12" }),
+            React.createElement("path", { ...p, d: "M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z" })),
+        send: React.createElement(React.Fragment, null,
+            React.createElement("line", { ...p, x1: "22", y1: "2", x2: "11", y2: "13" }),
+            React.createElement("polygon", { ...p, points: "22 2 15 22 11 13 2 9 22 2" })),
+    };
+    return React.createElement("svg", { viewBox: "0 0 24 24", width: size, height: size, style: { display: "block" } }, g[name]);
+};
+// ── PRIMITIVES ──────────────────────────────────────────────────────────────────
+const Eyebrow = ({ children, right }) => (React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+    React.createElement("div", { style: { fontSize: 10.5, fontWeight: 700, color: C.grey, textTransform: "uppercase", letterSpacing: ".14em" } }, children),
+    right));
+const Card = ({ children, style = {} }) => React.createElement("div", { style: { background: C.surface, borderRadius: 16, border: `1px solid ${C.line}`, boxShadow: SH, ...style } }, children);
+const Notice = ({ children }) => React.createElement("div", { style: { marginBottom: 16, padding: "14px 16px", background: C.sky, borderRadius: 14 } },
+    React.createElement("div", { style: { fontSize: 12.5, color: C.ink, lineHeight: 1.55 } }, children));
+function Row({ left, leftSub, right, rightSub, rightColor = C.ink, last, onClick, chevron }) {
+    return (React.createElement("div", { onClick: onClick, className: onClick ? "press" : "", style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: last ? "none" : `1px solid ${C.line}`, cursor: onClick ? "pointer" : "default" } },
+        React.createElement("div", { style: { flex: 1, paddingRight: 10 } },
+            React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: C.ink } }, left),
+            leftSub && React.createElement("div", { style: { fontSize: 11.5, color: C.grey, marginTop: 2 } }, leftSub)),
+        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+            React.createElement("div", { style: { textAlign: "right" } },
+                right && React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: rightColor } }, right),
+                rightSub && React.createElement("div", { style: { fontSize: 11, color: C.grey, marginTop: 1 } }, rightSub)),
+            chevron && React.createElement(Icon, { name: "chevron", size: 16, color: C.greyLt, sw: 2 }))));
+}
+function Status({ kind }) {
+    const m = { full: { l: "Covered", d: C.ink, t: C.ink, f: true }, partial: { l: "Partial", d: C.grey, t: C.ink2, f: false }, none: { l: "Not enrolled", d: C.greyLt, t: C.grey, f: false }, enrolled: { l: "Enrolled", d: C.ink, t: C.ink, f: true } };
+    const s = m[kind] || m.none;
+    return (React.createElement("div", { style: { display: "inline-flex", alignItems: "center", gap: 6 } },
+        React.createElement("span", { style: { width: 7, height: 7, borderRadius: "50%", background: s.f ? s.d : "transparent", border: `1.5px solid ${s.d}`, flexShrink: 0 } }),
+        React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: s.t, whiteSpace: "nowrap" } }, s.l)));
+}
+function Arc({ used, total, fill, label, size = 118 }) {
+    const v = useCountUp(used, 1000);
+    const r = (size - 14) / 2, circ = 2 * Math.PI * r, dash = circ * Math.min(v / total, 1);
+    const met = used >= total;
+    return (React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center" } },
+        React.createElement("div", { style: { position: "relative", width: size, height: size } },
+            React.createElement("svg", { width: size, height: size, style: { transform: "rotate(-90deg)" } },
+                React.createElement("circle", { cx: size / 2, cy: size / 2, r: r, fill: "none", stroke: C.faint, strokeWidth: 8 }),
+                React.createElement("circle", { cx: size / 2, cy: size / 2, r: r, fill: "none", stroke: fill, strokeWidth: 8, strokeDasharray: `${dash} ${circ}`, strokeLinecap: "round" })),
+            React.createElement("div", { style: { position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" } },
+                React.createElement("div", { style: { fontFamily: SERIF, fontSize: 22, fontWeight: 600, color: C.ink, letterSpacing: "-.02em", lineHeight: 1 } }, money0(v)),
+                React.createElement("div", { style: { fontSize: 10, color: met ? C.goldDeep : C.grey, marginTop: 4, fontWeight: met ? 700 : 400 } }, met ? "met" : `of ${money0(total)}`))),
+        React.createElement("div", { style: { fontSize: 11.5, fontWeight: 700, color: C.ink2, marginTop: 8 } }, label)));
+}
+function MiniBar({ label, used, total, fill }) {
+    const [w, setW] = useState(0);
+    useEffect(() => { const t = setTimeout(() => setW(Math.min((used / total) * 100, 100)), 60); return () => clearTimeout(t); }, [used, total]);
+    return (React.createElement("div", null,
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 5 } },
+            React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: C.ink2 } }, label),
+            React.createElement("span", { style: { fontSize: 12, color: C.grey } },
+                React.createElement("strong", { style: { color: C.ink } },
+                    "$",
+                    used.toLocaleString()),
+                " / $",
+                total.toLocaleString())),
+        React.createElement("div", { style: { height: 6, background: C.faint, borderRadius: 3 } },
+            React.createElement("div", { style: { height: "100%", width: `${w}%`, background: fill, borderRadius: 3, transition: "width 1s cubic-bezier(.4,0,.2,1)" } }))));
+}
+// ── INSURANCE CARDS (parametric, carrier-branded, no Marsh logo) ─────────────────
+const THEMES = {
+    medical: { bg: "linear-gradient(155deg,#000F47 0%,#0A1E63 100%)", fg: "#fff", sub: "rgba(255,255,255,.55)", hair: "rgba(255,255,255,.13)", carrier: "Blue Shield", kind: "Medical · PPO Gold", badge: true, metaType: "medical", strip: [["PCP", "$25"], ["SPEC", "$50"], ["ER", "$300"], ["RX", "$10"]], back: [["Member Services", "1-800-393-6130"], ["24/7 Nurse Line", "1-877-304-0504"], ["Mental Health", "care.lyrahealth.com"]], note: "Claims: Blue Shield of CA, PO Box 272540, Chico, CA 95927" },
+    pharmacy: { bg: "#CEECFF", fg: "#000F47", sub: "rgba(0,15,71,.5)", hair: "rgba(0,15,71,.15)", carrier: "Blue Shield", kind: "Pharmacy · Rx", badge: false, metaType: "rx", strip: [["GENERIC", "$10"], ["BRAND", "$45"], ["MAIL 90d", "$20"]], back: [["Pharmacy Help", "1-888-792-7473"], ["Mail Order", "1-866-346-7200"]], note: "Show at any in-network pharmacy. Copays apply after deductible where relevant." },
+    dental: { bg: "linear-gradient(155deg,#20242E 0%,#2E3340 100%)", fg: "#fff", sub: "rgba(255,255,255,.5)", hair: "rgba(255,255,255,.13)", carrier: "Delta Dental", kind: "Dental · PPO", badge: false, metaType: "dental", strip: [["PREV", "100%"], ["BASIC", "80%"], ["MAJOR", "50%"], ["MAX", "$1.5k"]], back: [["Customer Service", "1-800-765-6003"], ["Find a dentist", "deltadentalins.com"]], note: "Two cleanings & exams a year covered at 100%." },
+    vision: { bg: "#FFF3DA", fg: "#3A3320", sub: "rgba(58,51,32,.55)", hair: "rgba(58,51,32,.18)", carrier: "VSP", kind: "Vision · Choice", badge: false, metaType: "vision", strip: [["EXAM", "$10"], ["FRAMES", "$150"], ["LENSES", "✓"], ["EVERY", "12mo"]], back: [["Customer Service", "1-800-877-7195"], ["Find an eye doctor", "vsp.com"]], note: "Exam, lenses, and a $150 frame allowance every 12 months." },
+};
+function cardMeta(metaType, member) {
+    if (metaType === "rx")
+        return [["RxBIN", "600428"], ["RxPCN", "06150000"], ["RxGRP", "BSCRX01"]];
+    if (metaType === "vision")
+        return [["Member ID", member.memberId]];
+    return [["Member ID", member.memberId], ["Group", PLAN.group]];
+}
+function InsuranceCard({ member, flipped, theme: t }) {
+    const meta = cardMeta(t.metaType, member);
+    return (React.createElement("div", { style: { perspective: 1400, width: "100%", height: 200 } },
+        React.createElement("div", { style: { position: "relative", width: "100%", height: "100%", transition: "transform .6s cubic-bezier(.4,0,.2,1)", transformStyle: "preserve-3d", transform: flipped ? "rotateY(180deg)" : "rotateY(0)", boxShadow: "0 2px 8px rgba(0,15,71,.10), 0 22px 44px -20px rgba(0,15,71,.45)", borderRadius: 18 } },
+            React.createElement("div", { style: { position: "absolute", inset: 0, borderRadius: 18, background: t.bg, color: t.fg, padding: "20px 22px", overflow: "hidden", WebkitBackfaceVisibility: "hidden", backfaceVisibility: "hidden" } },
+                React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } },
+                    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 9 } },
+                        React.createElement("div", { style: { fontSize: 14.5, fontWeight: 800, letterSpacing: "-.01em" } }, t.carrier),
+                        React.createElement("div", { style: { width: 1, height: 18, background: t.hair } }),
+                        React.createElement("div", { style: { fontSize: 11, color: t.sub } }, t.kind)),
+                    t.badge && React.createElement("div", { style: { fontSize: 9.5, fontWeight: 700, letterSpacing: ".1em", color: C.gold, border: `1px solid ${C.gold}`, borderRadius: 5, padding: "3px 7px" } }, "ACTIVE")),
+                React.createElement("div", { style: { marginTop: 18, fontFamily: SERIF, fontSize: 20, fontWeight: 500, letterSpacing: "0" } }, member.name),
+                React.createElement("div", { style: { display: "flex", gap: 22, marginTop: 12 } }, meta.map(([k, v]) => (React.createElement("div", { key: k },
+                    React.createElement("div", { style: { fontSize: 8.5, color: t.sub, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase" } }, k),
+                    React.createElement("div", { style: { fontSize: 12, fontWeight: 600, marginTop: 2, fontFamily: "monospace", letterSpacing: ".02em" } }, v))))),
+                React.createElement("div", { style: { position: "absolute", left: 22, right: 22, bottom: 16, display: "flex", justifyContent: "space-between", paddingTop: 11, borderTop: `1px solid ${t.hair}` } }, t.strip.map(([k, v]) => (React.createElement("div", { key: k, style: { textAlign: "center" } },
+                    React.createElement("div", { style: { fontSize: 8, color: t.sub, fontWeight: 700, letterSpacing: ".06em" } }, k),
+                    React.createElement("div", { style: { fontSize: 12.5, fontWeight: 700, marginTop: 2 } }, v)))))),
+            React.createElement("div", { style: { position: "absolute", inset: 0, borderRadius: 18, background: t.bg, color: t.fg, padding: "18px 22px", transform: "rotateY(180deg)", WebkitBackfaceVisibility: "hidden", backfaceVisibility: "hidden" } },
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: ".14em", color: t.sub, textTransform: "uppercase" } },
+                    t.carrier,
+                    " · ",
+                    t.kind),
+                React.createElement("div", { style: { marginTop: 14, display: "flex", flexDirection: "column", gap: 11 } }, t.back.map(([k, v]) => (React.createElement("div", { key: k, style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
+                    React.createElement("span", { style: { fontSize: 11.5, color: t.sub } }, k),
+                    React.createElement("span", { style: { fontSize: 12, fontWeight: 700, fontFamily: "monospace" } }, v))))),
+                React.createElement("div", { style: { position: "absolute", left: 22, right: 22, bottom: 16, paddingTop: 10, borderTop: `1px solid ${t.hair}`, fontSize: 9.5, color: t.sub, lineHeight: 1.5 } }, t.note)))));
+}
+// ── SPLASH (reliable CSS reveal of the Marsh M) ─────────────────────────────────
+function Splash({ onDone }) {
+    const [closing, setClosing] = useState(false);
+    const finish = useCallback(() => { setClosing(true); setTimeout(onDone, 420); }, [onDone]);
+    useEffect(() => { const t = setTimeout(finish, 2300); return () => clearTimeout(t); }, [finish]);
+    return (React.createElement("div", { onClick: finish, style: { position: "fixed", inset: 0, zIndex: 100, background: "#000F47", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20, opacity: closing ? 0 : 1, transition: "opacity .42s ease" } },
+        React.createElement("img", { src: M_WHITE, alt: "Marsh Agency", style: { width: 92, animation: "mreveal 1.05s cubic-bezier(.4,0,.2,1) both" } }),
+        React.createElement("div", { style: { height: 2, borderRadius: 2, background: C.gold, width: 0, animation: "mline .6s ease .75s forwards" } })));
+}
+// ── WALLET CAROUSEL (swipe through cards, tap to flip) ──────────────────────────
+function WalletStack({ member }) {
+    const order = ["medical", "pharmacy", "dental", "vision"];
+    const [active, setActive] = useState(0);
+    const [flip, setFlip] = useState({});
+    const scroller = useRef(null);
+    const onScroll = useCallback((e) => { const k = e.currentTarget.children; if (!k.length)
+        return; const w = k[0].getBoundingClientRect().width + 12; setActive(Math.round(e.currentTarget.scrollLeft / w)); }, []);
+    return (React.createElement("div", null,
+        React.createElement("div", { ref: scroller, onScroll: onScroll, style: { display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", padding: "2px 16px 4px", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } }, order.map((id) => (React.createElement("div", { key: id, onClick: () => setFlip(f => ({ ...f, [id]: !f[id] })), style: { flex: "0 0 86%", scrollSnapAlign: "center", cursor: "pointer" } },
+            React.createElement(InsuranceCard, { member: member, flipped: !!flip[id], theme: THEMES[id] }))))),
+        React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginTop: 12 } },
+            React.createElement("div", { style: { display: "flex", gap: 6 } }, order.map((_, i) => React.createElement("div", { key: i, style: { width: active === i ? 18 : 6, height: 6, borderRadius: 3, background: active === i ? C.ink : C.line, transition: "all .25s" } }))),
+            React.createElement("div", { style: { fontSize: 11.5, color: C.greyLt, fontWeight: 500 } }, "Tap a card to flip · swipe to switch"))));
+}
+// ── HOME / WALLET ───────────────────────────────────────────────────────────────
+function Home({ setTab }) {
+    const [memberId, setMemberId] = useState("self");
+    const member = byId(memberId);
+    const [toast, setToast] = useState(false);
+    const hsaV = useCountUp(HSA.balance, 1100);
+    const addToWallet = () => { setToast(true); setTimeout(() => setToast(false), 2400); };
+    return (React.createElement("div", { style: { paddingBottom: 28 } },
+        React.createElement("div", { style: { padding: "0 16px 14px", display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none" } }, HOUSEHOLD.map(m => {
+            const on = m.id === memberId;
+            return (React.createElement("button", { key: m.id, className: "press", onClick: () => setMemberId(m.id), style: { display: "flex", alignItems: "center", gap: 8, padding: "5px 13px 5px 5px", borderRadius: 22, border: `1px solid ${on ? C.ink : C.line}`, background: on ? C.ink : C.surface, cursor: "pointer", flexShrink: 0, transition: "all .2s", boxShadow: on ? SH : "none" } },
+                React.createElement("span", { style: { width: 26, height: 26, borderRadius: "50%", background: on ? "rgba(255,255,255,.18)" : C.faint, color: on ? "#fff" : C.ink2, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 800 } }, m.initials),
+                React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: on ? "#fff" : C.ink2 } }, m.first)));
+        })),
+        React.createElement(WalletStack, { member: member }),
+        React.createElement("div", { style: { padding: "0 16px", margin: "18px 0 22px" } },
+            React.createElement("button", { className: "press", onClick: addToWallet, style: { width: "100%", height: 50, background: "#000", border: "none", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 9, cursor: "pointer" } },
+                React.createElement("svg", { viewBox: "0 0 24 24", width: "19", height: "19" },
+                    React.createElement("path", { fill: "#fff", d: "M14.94 5.19A4.38 4.38 0 0 0 16 2a4.44 4.44 0 0 0-3 1.52 4.17 4.17 0 0 0-1 3.09 3.69 3.69 0 0 0 2.94-1.42zm2.52 7.44a4.51 4.51 0 0 1 2.16-3.81 4.66 4.66 0 0 0-3.66-2c-1.56-.16-3 .91-3.83.91s-2-.89-3.3-.87a4.92 4.92 0 0 0-4.14 2.53C2.93 12.45 4.24 17 6 19.47c.8 1.21 1.8 2.58 3.12 2.53s1.75-.82 3.28-.82 2 .82 3.3.79 2.22-1.24 3.06-2.45a11 11 0 0 0 1.38-2.85 4.41 4.41 0 0 1-2.68-4.04z" })),
+                React.createElement("span", { style: { color: "#fff", fontSize: 15.5, fontWeight: 600, letterSpacing: "-.01em" } }, "Add all to Apple Wallet")),
+            React.createElement("button", { className: "press", onClick: addToWallet, style: { width: "100%", marginTop: 8, background: "none", border: "none", color: C.grey, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "4px 0" } }, "Add to Google Wallet")),
+        React.createElement("div", { style: { padding: "0 16px", marginBottom: 16 } },
+            React.createElement(Eyebrow, null,
+                member.first,
+                "'s spending · 2026"),
+            React.createElement(Card, { style: { padding: "20px 18px 16px" } },
+                React.createElement("div", { style: { display: "flex", justifyContent: "space-around" } },
+                    React.createElement(Arc, { used: member.ded.used, total: member.ded.total, fill: C.accent, label: "Deductible" }),
+                    React.createElement("div", { style: { width: 1, background: C.line } }),
+                    React.createElement(Arc, { used: member.oop.used, total: member.oop.total, fill: C.accentSoft, label: "Out-of-Pocket Max" })),
+                React.createElement("div", { style: { marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}`, display: "flex", flexDirection: "column", gap: 12 } },
+                    React.createElement("div", { style: { fontSize: 10.5, fontWeight: 700, color: C.grey, textTransform: "uppercase", letterSpacing: ".12em" } }, "Family totals"),
+                    React.createElement(MiniBar, { label: "Family deductible", used: FAMILY.ded.used, total: FAMILY.ded.total, fill: C.accent }),
+                    React.createElement(MiniBar, { label: "Family out-of-pocket", used: FAMILY.oop.used, total: FAMILY.oop.total, fill: C.accentSoft })))),
+        React.createElement("div", { style: { padding: "0 16px", marginBottom: 16 } },
+            React.createElement(Card, { style: { padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" } },
+                React.createElement("div", null,
+                    React.createElement("div", { style: { fontSize: 10.5, fontWeight: 700, color: C.grey, textTransform: "uppercase", letterSpacing: ".12em" } }, "HSA Balance"),
+                    React.createElement("div", { style: { fontFamily: SERIF, fontSize: 30, fontWeight: 400, color: C.ink, letterSpacing: "-.01em", marginTop: 3 } }, money2(hsaV))),
+                React.createElement("button", { className: "press", onClick: () => setTab("hsa"), style: { background: C.faint, border: "none", borderRadius: 10, padding: "9px 14px", fontSize: 12.5, fontWeight: 700, color: C.ink, cursor: "pointer" } }, "Manage"))),
+        React.createElement("div", { style: { padding: "0 16px", marginBottom: 16 } },
+            React.createElement(Eyebrow, null, "Quick access"),
+            React.createElement(Card, null, [{ label: "Claims & EOBs", icon: "receipt", tab: "claims" }, { label: "Cost estimator", icon: "calc", tab: "cost" }, { label: "Documents", icon: "file", tab: "docs" }].map((m, i, a) => (React.createElement("div", { key: m.tab, className: "press", onClick: () => setTab(m.tab), style: { display: "flex", alignItems: "center", gap: 13, padding: "14px 18px", borderBottom: i < a.length - 1 ? `1px solid ${C.line}` : "none", cursor: "pointer" } },
+                React.createElement(Icon, { name: m.icon, size: 19, color: C.ink, sw: 1.7 }),
+                React.createElement("span", { style: { flex: 1, fontSize: 14, fontWeight: 600, color: C.ink } }, m.label),
+                React.createElement(Icon, { name: "chevron", size: 16, color: C.greyLt, sw: 2 })))))),
+        React.createElement("div", { style: { padding: "0 16px" } },
+            React.createElement(Eyebrow, { right: React.createElement("button", { onClick: () => setTab("claims"), style: { fontSize: 11.5, color: C.action, fontWeight: 700, background: "none", border: "none", cursor: "pointer" } }, "All claims") }, "Recent activity"),
+            React.createElement(Card, null, CLAIMS.slice(0, 2).map((cl, i) => React.createElement(Row, { key: i, left: cl.service, leftSub: `${byId(cl.who).first} · ${cl.provider} · ${cl.date}`, right: `$${cl.you}`, rightSub: "your share", last: i === 1 })))),
+        toast && React.createElement("div", { style: { position: "fixed", bottom: 90, left: "50%", transform: "translateX(-50%)", background: C.ink, color: "#fff", padding: "12px 20px", borderRadius: 12, fontSize: 13.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 9, zIndex: 50, boxShadow: "0 8px 24px rgba(0,15,71,.3)", animation: "rise .3s ease" } },
+            React.createElement(Icon, { name: "check", size: 16, color: "#fff", sw: 2.5 }),
+            " Added 4 cards to Apple Wallet")));
+}
+// ── BENEFITS ─────────────────────────────────────────────────────────────────────
+function Benefits({ setTab, openBenefit }) {
+    return (React.createElement("div", { style: { padding: "0 16px 28px" } },
+        React.createElement(Notice, null, "Everything your employer offers, in one place. Tap any benefit to see what it covers and how to use it."),
+        GROUPS.map(group => (React.createElement("div", { key: group.title, style: { marginBottom: 18 } },
+            React.createElement(Eyebrow, null, group.title),
+            React.createElement(Card, null, group.items.map((it, i, a) => {
+                const data = it.id ? PKG[it.id] : null;
+                const name = data ? data.name : it.label;
+                const sub = data ? data.carrier : it.sub;
+                const status = data ? data.status : it.status;
+                const onClick = () => { if (it.route === "detail")
+                    openBenefit(it.id);
+                else
+                    setTab(it.route); };
+                return (React.createElement("div", { key: name, className: "press", onClick: onClick, style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: i < a.length - 1 ? `1px solid ${C.line}` : "none", cursor: "pointer" } },
+                    React.createElement("div", { style: { flex: 1, paddingRight: 10 } },
+                        React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: C.ink } }, name),
+                        React.createElement("div", { style: { fontSize: 11.5, color: C.grey, marginTop: 2 } }, sub)),
+                    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+                        React.createElement(Status, { kind: status }),
+                        React.createElement(Icon, { name: "chevron", size: 16, color: C.greyLt, sw: 2 }))));
+            })))))));
+}
+function BenefitDetail({ id }) {
+    const b = PKG[id];
+    if (!b)
+        return null;
+    return (React.createElement("div", { style: { padding: "0 16px 28px" } },
+        React.createElement(Card, { style: { padding: "18px 20px", marginBottom: 16 } },
+            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } },
+                React.createElement("div", null,
+                    React.createElement("div", { style: { fontFamily: SERIF, fontSize: 23, fontWeight: 600, color: C.ink, letterSpacing: "-.01em" } }, b.name),
+                    React.createElement("div", { style: { fontSize: 12.5, color: C.grey, marginTop: 2 } }, b.carrier)),
+                React.createElement(Status, { kind: b.status })),
+            React.createElement("div", { style: { marginTop: 12, fontSize: 13.5, color: C.ink2, lineHeight: 1.55 } }, b.summary)),
+        React.createElement(Eyebrow, null, "Plan details"),
+        React.createElement(Card, { style: { marginBottom: 16 } }, b.rows.map((r, i) => React.createElement(Row, { key: r[0], left: r[0], right: r[1], rightColor: C.ink2, last: i === b.rows.length - 1 }))),
+        (b.call || b.web) && (React.createElement("div", { style: { display: "flex", gap: 8 } },
+            b.call && React.createElement("a", { href: `tel:${b.call.replace(/[^0-9]/g, "")}`, className: "press", style: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "12px 0", background: C.action, color: "#fff", borderRadius: 11, fontSize: 13, fontWeight: 700, textDecoration: "none" } },
+                React.createElement(Icon, { name: "phone", size: 15, color: "#fff", sw: 2 }),
+                " Call"),
+            b.web && React.createElement("a", { href: `https://${b.web}`, target: "_blank", rel: "noreferrer", className: "press", style: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "12px 0", background: C.surface, color: C.ink, border: `1px solid ${C.line}`, borderRadius: 11, fontSize: 13, fontWeight: 700, textDecoration: "none" } },
+                React.createElement(Icon, { name: "globe", size: 15, color: C.ink, sw: 2 }),
+                " Website")))));
+}
+// ── COPAYS / COVERAGE ────────────────────────────────────────────────────────────
+function Copays() {
+    return (React.createElement("div", { style: { padding: "0 16px 28px" } },
+        React.createElement(Notice, null,
+            "Copays apply on most in-network visits. After your ",
+            React.createElement("strong", null, "$1,500 deductible"),
+            ", coinsurance (20%) applies. At your ",
+            React.createElement("strong", null, "$4,000 out-of-pocket max"),
+            ", covered services are $0."),
+        React.createElement(Eyebrow, null, "In-network costs"),
+        React.createElement(Card, { style: { marginBottom: 16 } }, COPAYS.map((c, i) => React.createElement(Row, { key: c.label, left: c.label, leftSub: c.note, right: c.cost, last: i === COPAYS.length - 1 }))),
+        React.createElement(Eyebrow, null, "Out-of-network"),
+        React.createElement(Card, null,
+            React.createElement(Row, { left: "Deductible", leftSub: "Separate accumulator", right: "$3,000", rightColor: C.ink2 }),
+            React.createElement(Row, { left: "Coinsurance", leftSub: "You pay after OON deductible", right: "40%", rightColor: C.ink2, last: true }))));
+}
+function Coverage() {
+    return (React.createElement("div", { style: { padding: "0 16px 28px" } },
+        React.createElement(Eyebrow, null, "What's included"),
+        React.createElement(Card, { style: { marginBottom: 16 } }, BENEFITS.map((b, i) => (React.createElement("div", { key: b.label, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 18px", borderBottom: i < BENEFITS.length - 1 ? `1px solid ${C.line}` : "none" } },
+            React.createElement("div", { style: { flex: 1, paddingRight: 10 } },
+                React.createElement("div", { style: { fontSize: 13.5, fontWeight: 600, color: C.ink } }, b.label),
+                React.createElement("div", { style: { fontSize: 11.5, color: C.grey, marginTop: 2 } }, b.detail)),
+            React.createElement(Status, { kind: b.status }))))),
+        React.createElement(Eyebrow, null, "Prior authorization"),
+        React.createElement(Card, null, PRIOR_AUTH.map((pa, i) => (React.createElement("div", { key: pa.service, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 18px", borderBottom: i < PRIOR_AUTH.length - 1 ? `1px solid ${C.line}` : "none" } },
+            React.createElement("div", { style: { flex: 1, paddingRight: 10 } },
+                React.createElement("div", { style: { fontSize: 13.5, fontWeight: 600, color: C.ink } }, pa.service),
+                React.createElement("div", { style: { fontSize: 11.5, color: C.grey, marginTop: 2 } }, pa.note)),
+            React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: pa.required ? C.ink : C.grey } }, pa.required ? "Required" : "Not required")))))));
+}
+// ── FIND CARE ────────────────────────────────────────────────────────────────────
+function FindCare() {
+    const [cat, setCat] = useState("pcp");
+    const cd = CARE_CATS.find(c => c.id === cat);
+    return (React.createElement("div", { style: { padding: "0 16px 28px" } },
+        React.createElement("div", { style: { display: "flex", overflowX: "auto", gap: 8, marginBottom: 14, paddingBottom: 2, scrollbarWidth: "none" } }, CARE_CATS.map(c => { const on = cat === c.id; return React.createElement("button", { key: c.id, className: "press", onClick: () => setCat(c.id), style: { padding: "7px 15px", borderRadius: 20, border: `1px solid ${on ? C.ink : C.line}`, background: on ? C.ink : C.surface, color: on ? "#fff" : C.ink2, fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap", cursor: "pointer", transition: "all .15s" } }, c.label); })),
+        React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
+            React.createElement("div", { style: { flex: 1, background: C.sky, borderRadius: 10, padding: "10px 14px", fontSize: 12, color: C.ink, fontWeight: 600 } },
+                "Your copay: ",
+                React.createElement("strong", null, cd === null || cd === void 0 ? void 0 : cd.copay),
+                " in-network"),
+            React.createElement("div", { style: { background: C.faint, borderRadius: 10, padding: "10px 13px", fontSize: 12, color: C.ink2, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 } },
+                React.createElement(Icon, { name: "map", size: 13, color: C.ink, sw: 2 }),
+                " San Diego")),
+        PROVIDERS[cat].map(p => {
+            const url = `https://maps.apple.com/?q=${encodeURIComponent(p.name)}&ll=${p.lat},${p.lng}`;
+            const stars = Math.round(p.rating);
+            return (React.createElement(Card, { key: p.name, style: { marginBottom: 10, padding: "15px 16px" } },
+                React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } },
+                    React.createElement("div", { style: { flex: 1, paddingRight: 8 } },
+                        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: C.ink, lineHeight: 1.3 } }, p.name),
+                        React.createElement("div", { style: { fontSize: 11.5, color: C.grey, marginTop: 2 } }, p.org)),
+                    React.createElement("div", { style: { background: C.ink, color: "#fff", fontSize: 11.5, fontWeight: 700, borderRadius: 7, padding: "3px 9px", flexShrink: 0 } }, cd === null || cd === void 0 ? void 0 : cd.copay)),
+                React.createElement("div", { style: { marginTop: 10, display: "flex", flexDirection: "column", gap: 3 } },
+                    React.createElement("div", { style: { fontSize: 12, color: C.grey } }, p.addr),
+                    React.createElement("div", { style: { fontSize: 12, color: C.grey } }, p.hours),
+                    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 5, marginTop: 2 } },
+                        React.createElement("span", { style: { color: C.gold, fontSize: 11, letterSpacing: 1 } },
+                            "★".repeat(stars),
+                            React.createElement("span", { style: { color: C.greyLt } }, "★".repeat(5 - stars))),
+                        React.createElement("span", { style: { fontSize: 11, color: C.grey } },
+                            p.rating.toFixed(1),
+                            " · ",
+                            p.reviews.toLocaleString(),
+                            " reviews"))),
+                React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 12 } },
+                    React.createElement("a", { href: `tel:${p.phone}`, className: "press", style: { flex: 1, textAlign: "center", padding: "9px 0", background: C.action, color: "#fff", borderRadius: 9, fontSize: 12.5, fontWeight: 700, textDecoration: "none" } }, "Call"),
+                    React.createElement("a", { href: url, target: "_blank", rel: "noreferrer", className: "press", style: { flex: 1, textAlign: "center", padding: "9px 0", background: C.surface, color: C.ink, border: `1px solid ${C.line}`, borderRadius: 9, fontSize: 12.5, fontWeight: 700, textDecoration: "none" } }, "Directions"))));
+        })));
+}
+// ── CLAIMS ───────────────────────────────────────────────────────────────────────
+function Claims() {
+    const [filter, setFilter] = useState("all");
+    const list = filter === "all" ? CLAIMS : CLAIMS.filter(c => c.who === filter);
+    const total = list.reduce((a, c) => a + c.you, 0);
+    const tV = useCountUp(total, 800);
+    return (React.createElement("div", { style: { padding: "0 16px 28px" } },
+        React.createElement("div", { style: { display: "flex", gap: 8, overflowX: "auto", marginBottom: 14, scrollbarWidth: "none" } }, [{ id: "all", label: "All household" }, ...HOUSEHOLD.map(m => ({ id: m.id, label: m.first }))].map(f => { const on = filter === f.id; return React.createElement("button", { key: f.id, className: "press", onClick: () => setFilter(f.id), style: { padding: "7px 14px", borderRadius: 20, border: `1px solid ${on ? C.ink : C.line}`, background: on ? C.ink : C.surface, color: on ? "#fff" : C.ink2, fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap", cursor: "pointer" } }, f.label); })),
+        React.createElement(Card, { style: { padding: "16px 18px", marginBottom: 14 } },
+            React.createElement("div", { style: { fontSize: 10.5, color: C.grey, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".12em" } }, "You've paid · 2026"),
+            React.createElement("div", { style: { fontFamily: SERIF, fontSize: 31, fontWeight: 600, color: C.ink, letterSpacing: "-.01em", marginTop: 4 } }, money0(tV)),
+            React.createElement("div", { style: { fontSize: 12, color: C.grey, marginTop: 2 } },
+                list.length,
+                " claim",
+                list.length !== 1 ? "s" : "")),
+        React.createElement(Eyebrow, null, "Claim history"),
+        React.createElement(Card, null, list.map((cl, i) => (React.createElement("div", { key: i, style: { padding: "14px 18px", borderBottom: i < list.length - 1 ? `1px solid ${C.line}` : "none" } },
+            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } },
+                React.createElement("div", { style: { flex: 1, paddingRight: 8 } },
+                    React.createElement("div", { style: { fontSize: 13.5, fontWeight: 600, color: C.ink } }, cl.service),
+                    React.createElement("div", { style: { fontSize: 11.5, color: C.grey, marginTop: 2 } },
+                        byId(cl.who).first,
+                        " · ",
+                        cl.provider,
+                        " · ",
+                        cl.date)),
+                React.createElement("span", { style: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: C.grey } },
+                    React.createElement("span", { style: { width: 7, height: 7, borderRadius: "50%", background: C.ink } }),
+                    " Paid")),
+            React.createElement("div", { style: { display: "flex", gap: 18, marginTop: 10 } }, [["Billed", `$${cl.billed}`], ["Plan paid", `$${cl.plan}`], ["Your share", `$${cl.you}`]].map(([k, v]) => (React.createElement("div", { key: k },
+                React.createElement("div", { style: { fontSize: 9.5, color: C.grey, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em" } }, k),
+                React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: k === "Your share" ? C.ink : C.ink2, marginTop: 2 } }, v)))))))))));
+}
+// ── COST / HSA / FSA / DOCS ──────────────────────────────────────────────────────
+function CostEstimator() {
+    const [sel, setSel] = useState(null);
+    const rem = byId("self").ded.total - byId("self").ded.used;
+    return (React.createElement("div", { style: { padding: "0 16px 28px" } },
+        React.createElement(Notice, null,
+            "You have ",
+            React.createElement("strong", null,
+                "$",
+                rem.toLocaleString()),
+            " left before your deductible is met. Estimates assume in-network providers."),
+        React.createElement(Eyebrow, null, "Tap a service to estimate"),
+        React.createElement(Card, null, COST_PROCEDURES.map((p, i) => (React.createElement("div", { key: p.label, className: "press", onClick: () => setSel(sel === p.label ? null : p.label), style: { padding: "13px 18px", borderBottom: i < COST_PROCEDURES.length - 1 ? `1px solid ${C.line}` : "none", cursor: "pointer", background: sel === p.label ? C.faint : "transparent" } },
+            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
+                React.createElement("div", { style: { fontSize: 13.5, fontWeight: 600, color: C.ink } }, p.label),
+                React.createElement("div", { style: { fontFamily: SERIF, fontSize: 17, fontWeight: 600, color: C.ink } }, p.cost === 0 ? "$0" : `~$${p.cost}`)),
+            sel === p.label && React.createElement("div", { style: { marginTop: 8, fontSize: 12, color: C.ink2, lineHeight: 1.5, padding: "9px 11px", background: C.sky, borderRadius: 9 } },
+                p.note,
+                p.cost > 0 && p.cost <= rem && React.createElement("div", { style: { marginTop: 4, color: C.ink, fontWeight: 600 } },
+                    "This applies toward your remaining $",
+                    rem,
+                    " deductible."))))))));
+}
+function AccountScreen({ headline, sub, progress, rows, eligibleTitle, eligible }) {
+    const [w, setW] = useState(0);
+    useEffect(() => { if (!progress)
+        return; const t = setTimeout(() => setW(progress.pct), 80); return () => clearTimeout(t); }, [progress]);
+    return (React.createElement("div", { style: { padding: "0 16px 28px" } },
+        React.createElement(Card, { style: { padding: "20px 20px 18px", marginBottom: 14 } },
+            React.createElement("div", { style: { fontSize: 10.5, fontWeight: 700, color: C.grey, textTransform: "uppercase", letterSpacing: ".12em" } }, sub),
+            React.createElement("div", { style: { fontFamily: SERIF, fontSize: 38, fontWeight: 500, color: C.ink, letterSpacing: "-.01em", marginTop: 4, lineHeight: 1 } }, headline),
+            progress && React.createElement("div", { style: { marginTop: 14 } },
+                React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 12, color: C.grey } },
+                    React.createElement("span", null, progress.label),
+                    React.createElement("span", { style: { fontWeight: 700, color: C.ink } }, progress.value)),
+                React.createElement("div", { style: { height: 6, background: C.faint, borderRadius: 3 } },
+                    React.createElement("div", { style: { height: "100%", width: `${w}%`, background: C.accent, borderRadius: 3, transition: "width 1s cubic-bezier(.4,0,.2,1)" } })))),
+        React.createElement(Eyebrow, null, "Year-to-date"),
+        React.createElement(Card, { style: { marginBottom: 14 } }, rows.map((r, i) => React.createElement(Row, { key: r[0], left: r[0], leftSub: r[2], right: r[1], rightColor: r[3] || C.ink2, last: i === rows.length - 1 }))),
+        React.createElement(Eyebrow, null, eligibleTitle),
+        React.createElement(Card, null, eligible.map((e, i, a) => React.createElement("div", { key: e, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", borderBottom: i < a.length - 1 ? `1px solid ${C.line}` : "none" } },
+            React.createElement("span", { style: { fontSize: 13.5, color: C.ink, fontWeight: 500 } }, e),
+            React.createElement(Icon, { name: "check", size: 15, color: C.ink, sw: 2.5 }))))));
+}
+const HSAScreen = () => React.createElement(AccountScreen, { sub: "Available balance", headline: money2(HSA.balance), progress: { label: "2026 contributions", value: `$${HSA.ytdContrib.toLocaleString()} / $${HSA.limit.toLocaleString()}`, pct: Math.round((HSA.ytdContrib / HSA.limit) * 100) }, rows: [["Contributions", `$${HSA.ytdContrib.toLocaleString()}`, "Employee + employer", C.ink], ["Withdrawals", `−$${HSA.ytdSpend.toLocaleString()}`, "Medical expenses paid", C.ink2], ["IRS annual limit", `$${HSA.limit.toLocaleString()}`, "Individual, 2026", C.ink2]], eligibleTitle: "Eligible expenses", eligible: ["Copays & deductibles", "Prescriptions", "Dental & orthodontia", "Vision / eyeglasses", "Mental health visits", "Medical equipment", "LASIK surgery"] });
+const FSAScreen = () => React.createElement(AccountScreen, { sub: "Remaining balance", headline: `$${DCFSA.remaining.toLocaleString()}`, progress: { label: "Used of $5,000 election", value: `$${DCFSA.used.toLocaleString()} / $${DCFSA.election.toLocaleString()}`, pct: Math.round((DCFSA.used / DCFSA.election) * 100) }, rows: [["2026 election", `$${DCFSA.election.toLocaleString()}`, "Set during enrollment", C.ink], ["Used", `$${DCFSA.used.toLocaleString()}`, "Reimbursed so far", C.ink2], ["Deadline", "Dec 31, 2026", "Use-it-or-lose-it", C.ink2]], eligibleTitle: "Eligible expenses", eligible: ["Daycare & preschool", "After-school programs", "Summer day camp", "Nanny / au pair", "Before-school care", "Elder day care"] });
+function Documents() {
+    return (React.createElement("div", { style: { padding: "0 16px 28px" } },
+        React.createElement(Eyebrow, null, "Your documents"),
+        React.createElement(Card, null, DOCS.map((d, i) => (React.createElement("div", { key: d.name, className: "press", style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: i < DOCS.length - 1 ? `1px solid ${C.line}` : "none", cursor: "pointer" } },
+            React.createElement("div", { style: { display: "flex", gap: 12, alignItems: "center", flex: 1 } },
+                React.createElement("div", { style: { width: 36, height: 36, borderRadius: 9, background: C.faint, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } },
+                    React.createElement(Icon, { name: "file", size: 16, color: C.ink, sw: 1.8 })),
+                React.createElement("div", null,
+                    React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: C.ink, lineHeight: 1.3 } }, d.name),
+                    React.createElement("div", { style: { fontSize: 11, color: C.grey, marginTop: 2 } },
+                        d.type,
+                        " · ",
+                        d.date))),
+            React.createElement(Icon, { name: "download", size: 16, color: C.greyLt, sw: 2 })))))));
+}
+// ── SUPPORT ──────────────────────────────────────────────────────────────────────
+function Support() {
+    const [view, setView] = useState("menu");
+    const [topic, setTopic] = useState("");
+    const [text, setText] = useState("");
+    const open = (t) => { setTopic(t); setText(""); setView("compose"); };
+    if (view === "sent") {
+        return (React.createElement("div", { style: { padding: "40px 16px", textAlign: "center" } },
+            React.createElement("div", { style: { width: 56, height: 56, borderRadius: "50%", background: C.sky, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" } },
+                React.createElement(Icon, { name: "check", size: 26, color: C.ink, sw: 2.5 })),
+            React.createElement("div", { style: { fontFamily: SERIF, fontSize: 22, fontWeight: 600, color: C.ink, letterSpacing: "-.01em" } }, "Message sent"),
+            React.createElement("div", { style: { fontSize: 13.5, color: C.ink2, marginTop: 8, lineHeight: 1.55, maxWidth: 300, margin: "8px auto 0" } }, "A benefits advocate will review and reply within one business day. You'll get a notification when they respond."),
+            React.createElement("button", { className: "press", onClick: () => setView("menu"), style: { marginTop: 24, background: C.action, color: "#fff", border: "none", borderRadius: 11, padding: "12px 28px", fontSize: 14, fontWeight: 700, cursor: "pointer" } }, "Done")));
+    }
+    if (view === "compose") {
+        return (React.createElement("div", { style: { padding: "0 16px 28px" } },
+            React.createElement(Card, { style: { padding: "16px 18px", marginBottom: 14 } },
+                React.createElement("div", { style: { fontSize: 10.5, fontWeight: 700, color: C.grey, textTransform: "uppercase", letterSpacing: ".12em" } }, "Topic"),
+                React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: C.ink, marginTop: 3 } }, topic)),
+            React.createElement(Card, { style: { padding: 4, marginBottom: 14 } },
+                React.createElement("textarea", { value: text, onChange: e => setText(e.target.value), placeholder: "Describe what you need help with. If it's about a bill or claim, include the provider and date.", style: { width: "100%", minHeight: 150, border: "none", outline: "none", resize: "vertical", fontSize: 14, lineHeight: 1.55, color: C.ink, fontFamily: "inherit", padding: 14, background: "transparent" } })),
+            React.createElement("div", { style: { display: "flex", gap: 8 } },
+                React.createElement("button", { className: "press", onClick: () => setView("menu"), style: { flex: 1, background: C.surface, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: 11, padding: "13px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" } }, "Cancel"),
+                React.createElement("button", { className: "press", onClick: () => text.trim() && setView("sent"), disabled: !text.trim(), style: { flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: text.trim() ? C.action : C.line, color: "#fff", border: "none", borderRadius: 11, padding: "13px 0", fontSize: 14, fontWeight: 700, cursor: text.trim() ? "pointer" : "default" } },
+                    React.createElement(Icon, { name: "send", size: 15, color: "#fff", sw: 2 }),
+                    " Send to my team"))));
+    }
+    return (React.createElement("div", { style: { padding: "0 16px 28px" } },
+        React.createElement(Card, { style: { padding: "18px 20px", marginBottom: 16 } },
+            React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 13 } },
+                React.createElement("div", { style: { width: 44, height: 44, borderRadius: "50%", background: C.ink, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } },
+                    React.createElement(Icon, { name: "life", size: 22, color: "#fff", sw: 2 })),
+                React.createElement("div", null,
+                    React.createElement("div", { style: { fontSize: 16, fontWeight: 800, color: C.ink, letterSpacing: "-.02em" } }, "MMA Member Advocacy"),
+                    React.createElement("div", { style: { fontSize: 12, color: C.grey, marginTop: 2 } }, "Replies within 1 business day"))),
+            React.createElement("div", { style: { marginTop: 13, fontSize: 13.5, color: C.ink2, lineHeight: 1.55 } }, "Real people who help you understand your benefits, resolve claims, and fix billing errors — so you don't have to fight the insurer alone.")),
+        React.createElement(Eyebrow, null, "How can we help?"),
+        React.createElement(Card, { style: { marginBottom: 16 } }, [["Message my benefits team", "Ask anything about your coverage", "A general question"], ["Help with a bill", "We'll review a charge that looks wrong", "Help with a bill"], ["Dispute a denied claim", "We'll handle the appeal for you", "Dispute a denied claim"], ["Request a callback", "An advocate will call you", "Request a callback"]].map(([label, sub, t], i, a) => (React.createElement("div", { key: label, className: "press", onClick: () => open(t), style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: i < a.length - 1 ? `1px solid ${C.line}` : "none", cursor: "pointer" } },
+            React.createElement("div", { style: { flex: 1, paddingRight: 10 } },
+                React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: C.ink } }, label),
+                React.createElement("div", { style: { fontSize: 11.5, color: C.grey, marginTop: 2 } }, sub)),
+            React.createElement(Icon, { name: "chevron", size: 16, color: C.greyLt, sw: 2 }))))),
+        React.createElement("div", { style: { padding: "13px 16px", marginBottom: 16, background: C.sky, borderRadius: 14 } },
+            React.createElement("div", { style: { fontSize: 12.5, color: C.ink, fontWeight: 700 } }, "Atención disponible en español"),
+            React.createElement("div", { style: { fontSize: 11.5, color: C.ink2, marginTop: 2 } }, "Spanish-speaking advocates are available by phone and message.")),
+        React.createElement(Eyebrow, null, "Direct lines"),
+        React.createElement(Card, null, [["Member advocacy", "1-888-460-9125"], ["Blue Shield member services", "1-800-393-6130"], ["24/7 nurse line", "1-877-304-0504"]].map(([k, v], i, a) => (React.createElement("a", { key: k, href: `tel:${v.replace(/[^0-9]/g, "")}`, className: "press", style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 18px", borderBottom: i < a.length - 1 ? `1px solid ${C.line}` : "none", textDecoration: "none" } },
+            React.createElement("span", { style: { fontSize: 13.5, color: C.ink, fontWeight: 500 } }, k),
+            React.createElement("span", { style: { fontSize: 13, color: C.action, fontWeight: 700, fontFamily: "monospace" } }, v)))))));
+}
+// ── ON-DEVICE ANSWER ENGINE (works everywhere, no network) ───────────────────────
+function localAnswer(q) {
+    const s = q.toLowerCase().trim();
+    const has = (...w) => w.some(x => s.includes(x));
+    const me = byId("self");
+    const dedLeft = me.ded.total - me.ded.used, oopLeft = me.oop.total - me.oop.used;
+    if (s === "hi" || s === "hello" || s === "hey" || has("good morning", "good afternoon", "how are you"))
+        return "Hi! Ask me about any part of your benefits — what's covered, what something costs, your deductible, dental, vision, your HSA, or how to find care near you.";
+    if (has("thank"))
+        return "You're welcome. Anything else about your benefits I can pull up?";
+    if (has("deductible"))
+        return `Your individual deductible is $${me.ded.total.toLocaleString()} and you've used $${me.ded.used.toLocaleString()}, so $${dedLeft.toLocaleString()} is left before the plan starts sharing costs. Your family deductible is $${FAMILY.ded.total.toLocaleString()} ($${FAMILY.ded.used.toLocaleString()} used so far). Preventive care and most copays don't count toward it.`;
+    if (has("coinsurance", "80/20", "split the cost", "how much does insurance pay", "how is it split"))
+        return "After you meet your deductible, costs split 80/20 — your plan pays 80%, you pay 20%. For example, a $2,400 MRI would cost you about $480. Once you reach your out-of-pocket max, covered in-network services are $0 for the rest of the year.";
+    if (has("out of pocket", "out-of-pocket", "oop", "maximum", "most i", "max i'll", "max i will"))
+        return `Your individual out-of-pocket max is $${me.oop.total.toLocaleString()} and you've paid $${me.oop.used.toLocaleString()}, so $${oopLeft.toLocaleString()} remains before the plan covers 100%. The family max is $${FAMILY.oop.total.toLocaleString()}. This cap includes your deductible, copays, and coinsurance — but not your monthly premium.`;
+    if (has("preventive", "annual physical", "check up", "checkup", "screening", "well visit", "well-woman", "vaccine", "flu shot", "immuniz", "mammogram", "colonoscopy"))
+        return "Preventive care is 100% covered at no cost to you — annual physicals, flu shots, cancer screenings like mammograms and colonoscopies, blood-pressure checks, well-woman visits, and routine vaccines — even before your deductible is met.";
+    if (has("dental", "dentist", "teeth", "tooth", "cleaning", "filling", "crown", "root canal", "braces", "ortho", "cavity"))
+        return "You have Delta Dental PPO. Cleanings and exams are 100% covered, fillings 80%, crowns 50%, with a $1,500 annual maximum per person and $1,500 lifetime orthodontia. Jordan and Maya are covered too. Customer service: 1-800-765-6003.";
+    if (has("vision", "eye", "glasses", "contacts", "lenses", "frames", "vsp", "optometr", "eye exam"))
+        return "Your VSP Choice plan covers an annual eye exam for a $10 copay, lenses in full, and a $150 frame allowance (or $150 toward contacts), once every 12 months. Customer service: 1-800-877-7195.";
+    if (has("therapy", "therapist", "counsel", "mental", "psych", "lyra", "depress", "anxiety", "stress"))
+        return "Two options: your medical plan covers in-network therapists at a $50 copay, and you also get 12 free sessions a year through Lyra Health with no referral. Use Find Care for in-network therapists, or go straight to Lyra at care.lyrahealth.com.";
+    if (has("eap", "employee assistance", "financial coaching", "legal consult", "guidanceresources"))
+        return "Your EAP through ComPsych GuidanceResources gives you 8 free counseling sessions, free 30-minute legal consults, and financial coaching, available 24/7. Call 1-877-595-5284.";
+    if (has("hsa", "health savings"))
+        return `Your HSA balance is ${money2(HSA.balance)}. Use it tax-free for qualified expenses — copays, prescriptions, dental, vision, even some over-the-counter items. You've contributed $${HSA.ytdContrib.toLocaleString()} of the $${HSA.limit.toLocaleString()} 2026 limit, and the balance rolls over and grows year to year.`;
+    if (has("fsa", "dependent care", "childcare", "child care", "daycare", "day care", "preschool", "nanny", "camp"))
+        return `Your Dependent Care FSA has $${DCFSA.remaining.toLocaleString()} left of your $${DCFSA.election.toLocaleString()} election. It covers daycare, preschool, after-school care, summer day camp, and similar — all pre-tax. Funds must be used by Dec 31.`;
+    if (has("life insurance", "life cover", "beneficiary"))
+        return "Your employer provides basic life insurance at 1× your annual salary at no cost, with the option to buy supplemental coverage up to 5×. The carrier is The Hartford.";
+    if (has("disability", "std", "ltd", "income protection", "can't work", "cant work", "injured", "medical leave"))
+        return "You're covered for disability through The Hartford: short-term pays 60% up to $1,500/week after a 7-day wait, and long-term pays 60% up to $10,000/month starting after 90 days.";
+    if (has("401", "retirement", "match", "fidelity"))
+        return "Your 401(k) is with Fidelity. The company matches 100% of the first 4% you contribute, and the match vests immediately. You're currently contributing 8% of pay.";
+    if (has("referral"))
+        return "No referrals needed. Your PPO lets you see any in-network specialist directly at the $50 specialist copay. Out-of-network is allowed but costs more.";
+    if (has("out of network", "out-of-network", "oon", "not in network", "not in-network"))
+        return "Out-of-network care is covered but costs more — a separate $3,000 deductible, 40% coinsurance, and providers can balance-bill you for the difference. Staying in-network is always cheaper; use Find Care to confirm a provider's network status.";
+    if (has("prior auth", "authorization", "pre-approval", "pre approval", "preauth", "approved before", "pre-authoriz"))
+        return "Some services need prior authorization first: MRI/CT imaging, outpatient surgery, specialty infusions, and durable medical equipment over $500. Office visits, urgent care, and up to 30 PT visits don't. Your doctor usually files it — your benefits team can confirm.";
+    if (has("find care", "find a doctor", "near me", "in-network doctor", "in network provider", "find a dentist", "find a specialist", "where can i go", "urgent care near"))
+        return "Open the Find Care tab — it lists in-network primary care, specialists, urgent care, dermatology, mental health, and orthopedics near San Diego, each with your copay shown and one-tap directions.";
+    if (has("claim", "eob", "explanation of benefits", "what did i pay", "what have i paid"))
+        return "You can see every claim under Claims & EOBs, filtered by family member, with what was billed, what the plan paid, and your share. So far this year your household has paid $736 across 6 claims.";
+    if (has("bill", "overcharged", "wrong", "dispute", "denied", "appeal", "balance bill", "surprise"))
+        return "If a bill looks wrong or a claim was denied, don't pay it blind — go to Support and choose 'Help with a bill' or 'Dispute a denied claim.' A benefits advocate will review it against your plan and handle the dispute for you.";
+    if (has("dependent", "spouse", "wife", "husband", "kid", "child", "children", "family member", "jordan", "maya", "add someone", "add my"))
+        return "Your plan covers your household: you, your spouse Jordan, and your dependent Maya (age 9). Each person has their own ID card and individual deductible, with shared family maximums. You can switch between members on the Wallet screen.";
+    if (has("id card", "insurance card", "member id", "member number", "card number"))
+        return `Your medical member ID is ${me.memberId}. Your digital cards — medical, pharmacy, dental, and vision — live on the Wallet screen and can be added to Apple Wallet. Tap a card to flip it for customer-service numbers.`;
+    if (has("copay", "co-pay", "co pay", "cost to see", "how much is a visit", "doctor visit", "urgent care", "emergency", "er visit", "telehealth", "virtual visit", "generic", "brand", "prescription", "rx", "imaging", "mri", "ct scan", "x-ray", "lab", "blood", "physical therapy", "chiro"))
+        return "Your in-network copays: primary care $25, specialist $50, urgent care $75, ER $300 (waived if admitted), telehealth $0, mental health $50, generic Rx $10, brand Rx $45. Labs and imaging are 20% after your deductible. See Copays & Costs for the full list.";
+    if (has("cover", "covered", "does my plan", "do i have"))
+        return "Your medical plan covers preventive care (free), doctor and specialist visits, urgent and emergency care, labs, imaging, maternity, telehealth, and mental health. You also have separate Dental (Delta) and Vision (VSP) plans. Ask me about any specific service and I'll tell you exactly how it's covered.";
+    if (has("how much", "cost of", "price", "estimate", "what will i pay", "what would"))
+        return "Try the Cost Estimator under Wallet → Quick access: tap a service like an MRI, lab panel, or office visit and it shows your estimated cost based on your plan and where your deductible stands. Or ask me about a specific service.";
+    return "I can help with your medical, dental, vision, pharmacy, HSA, FSA, life, disability, and 401(k) benefits — what's covered, what something costs, your deductible and out-of-pocket progress, finding in-network care, or sorting out a bill. Try asking about a specific service, or head to Support to message a benefits advocate.";
+}
+// ── ASK AI (live model when available, on-device engine as guaranteed fallback) ──
+function AskAI() {
+    const [messages, setMessages] = useState([{ role: "assistant", text: "Ask me anything about your benefits — medical, dental, vision, your HSA, what's covered, or how to use any of it." }]);
+    const [input, setInput] = useState("");
+    const [loading, setLoading] = useState(false);
+    const endRef = useRef(null);
+    useEffect(() => { var _a; (_a = endRef.current) === null || _a === void 0 ? void 0 : _a.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
+    const send = async (text) => {
+        const q = text.trim();
+        if (!q || loading)
+            return;
+        setInput("");
+        setMessages(p => [...p, { role: "user", text: q }]);
+        setLoading(true);
+        const answer = AI_RESPONSES[q] || localAnswer(q);
+        await new Promise(r => setTimeout(r, 350));
+        setMessages(p => [...p, { role: "assistant", text: answer }]);
+        setLoading(false);
+    };
+    return (React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 152px)", padding: "0 16px" } },
+        React.createElement("div", { style: { flex: 1, overflowY: "auto", paddingBottom: 12 } },
+            messages.map((m, i) => {
+                const u = m.role === "user";
+                return (React.createElement("div", { key: i, style: { display: "flex", justifyContent: u ? "flex-end" : "flex-start", marginBottom: 10, gap: 8, alignItems: "flex-end", animation: "rise .25s ease" } },
+                    !u && React.createElement("div", { style: { width: 28, height: 28, borderRadius: "50%", background: C.ink, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 } },
+                        React.createElement("img", { src: M_WHITE, alt: "", style: { width: 16 } })),
+                    React.createElement("div", { style: { maxWidth: "80%", padding: "11px 14px", background: u ? C.ink : C.surface, color: u ? "#fff" : C.ink2, border: u ? "none" : `1px solid ${C.line}`, borderRadius: u ? "16px 16px 4px 16px" : "16px 16px 16px 4px", fontSize: 13.5, lineHeight: 1.6, boxShadow: u ? "none" : SH } }, m.text)));
+            }),
+            loading && React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 10 } },
+                React.createElement("div", { style: { width: 28, height: 28, borderRadius: "50%", background: C.ink, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" } },
+                    React.createElement("img", { src: M_WHITE, alt: "", style: { width: 16 } })),
+                React.createElement("div", { style: { background: C.surface, border: `1px solid ${C.line}`, borderRadius: "16px 16px 16px 4px", padding: "13px 16px", display: "flex", gap: 5 } }, [0, 1, 2].map(i => React.createElement("div", { key: i, style: { width: 5, height: 5, borderRadius: "50%", background: C.grey, animation: "dot 1.2s infinite", animationDelay: `${i * .2}s` } })))),
+            React.createElement("div", { ref: endRef })),
+        React.createElement("div", { style: { marginBottom: 10 } },
+            React.createElement("div", { style: { fontSize: 10.5, fontWeight: 700, color: C.grey, textTransform: "uppercase", letterSpacing: ".12em", marginBottom: 8 } }, "Popular questions · tap to ask"),
+            React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 } }, PRESET_Q.map(q => React.createElement("button", { key: q, className: "press", onClick: () => send(q), style: { background: C.surface, border: `1px solid ${C.line}`, borderRadius: 16, padding: "6px 12px", fontSize: 12.5, color: C.ink2, fontWeight: 500, cursor: "pointer" } }, q)))),
+        React.createElement("div", { style: { display: "flex", gap: 8, background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, padding: "8px 8px 8px 14px", marginBottom: 6, boxShadow: SH } },
+            React.createElement("input", { value: input, onChange: e => setInput(e.target.value), onKeyDown: e => e.key === "Enter" && send(input), placeholder: "Ask about your benefits…", style: { flex: 1, border: "none", outline: "none", fontSize: 14, color: C.ink, background: "transparent", fontFamily: "inherit" } }),
+            React.createElement("button", { className: "press", onClick: () => send(input), disabled: !input.trim() || loading, style: { background: input.trim() && !loading ? C.action : C.line, color: "#fff", border: "none", borderRadius: 10, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" } }, "Send"))));
+}
+// ── PROFILE ──────────────────────────────────────────────────────────────────────
+function Profile() {
+    const [notif, setNotif] = useState({ claims: true, eob: true, advocate: true });
+    const self = byId("self");
+    return (React.createElement("div", { style: { padding: "0 16px 32px" } },
+        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14, marginBottom: 20, padding: "18px", background: C.surface, borderRadius: 16, border: `1px solid ${C.line}`, boxShadow: SH } },
+            React.createElement("div", { style: { width: 54, height: 54, borderRadius: "50%", background: C.ink, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 18, fontWeight: 800, flexShrink: 0 } }, self.initials),
+            React.createElement("div", null,
+                React.createElement("div", { style: { fontSize: 17, fontWeight: 800, color: C.ink, letterSpacing: "-.02em" } }, self.name),
+                React.createElement("div", { style: { fontSize: 11, color: C.grey, marginTop: 3, fontFamily: "monospace", letterSpacing: ".04em" } }, self.memberId),
+                React.createElement("div", { style: { fontSize: 11.5, color: C.ink2, fontWeight: 700, marginTop: 3 } }, PLAN.name))),
+        React.createElement(Eyebrow, null, "Covered household"),
+        React.createElement(Card, { style: { marginBottom: 16 } }, HOUSEHOLD.map((m, i) => (React.createElement("div", { key: m.id, style: { display: "flex", alignItems: "center", gap: 13, padding: "13px 18px", borderBottom: i < HOUSEHOLD.length - 1 ? `1px solid ${C.line}` : "none" } },
+            React.createElement("div", { style: { width: 38, height: 38, borderRadius: "50%", background: C.faint, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: C.ink2, flexShrink: 0 } }, m.initials),
+            React.createElement("div", { style: { flex: 1 } },
+                React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: C.ink } }, m.name),
+                React.createElement("div", { style: { fontSize: 11.5, color: C.grey, marginTop: 1 } },
+                    m.rel,
+                    " · ",
+                    m.memberId)))))),
+        React.createElement(Eyebrow, null, "Plan information"),
+        React.createElement(Card, { style: { marginBottom: 16 } }, [["Group number", PLAN.group], ["Coverage tier", PLAN.tier], ["Effective date", PLAN.effective], ["Plan year", "Jan 1 – Dec 31, 2026"]].map(([k, v], i, a) => React.createElement(Row, { key: k, left: k, right: v, rightColor: C.ink2, last: i === a.length - 1 }))),
+        React.createElement(Eyebrow, null, "Notifications"),
+        React.createElement(Card, { style: { marginBottom: 16 } }, [["When a claim is processed", "claims"], ["When a new EOB is ready", "eob"], ["When my advocate replies", "advocate"]].map(([label, key], i, a) => (React.createElement("div", { key: key, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: i < a.length - 1 ? `1px solid ${C.line}` : "none" } },
+            React.createElement("span", { style: { fontSize: 13.5, color: C.ink, fontWeight: 500 } }, label),
+            React.createElement("div", { onClick: () => setNotif(n => ({ ...n, [key]: !n[key] })), style: { width: 44, height: 26, borderRadius: 13, background: notif[key] ? C.ink : C.line, cursor: "pointer", position: "relative", transition: "background .2s", flexShrink: 0 } },
+                React.createElement("div", { style: { width: 20, height: 20, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: notif[key] ? 21 : 3, transition: "left .2s", boxShadow: "0 1px 4px rgba(0,0,0,.18)" } })))))),
+        React.createElement("button", { className: "press", style: { width: "100%", background: "none", border: `1px solid ${C.line}`, color: C.grey, borderRadius: 11, padding: "13px 0", fontSize: 13.5, fontWeight: 600, cursor: "pointer" } }, "Sign out")));
+}
+// ── NAV + ROOT ───────────────────────────────────────────────────────────────────
+const NAV = [
+    { id: "home", label: "Wallet", icon: "home" }, { id: "benefits", label: "Benefits", icon: "layers" },
+    { id: "findcare", label: "Find Care", icon: "search" }, { id: "chat", label: "Ask AI", icon: "chat" },
+    { id: "support", label: "Support", icon: "life" },
+];
+const TITLES = { home: "My Wallet", benefits: "My Benefits", findcare: "Find Care", chat: "Benefits AI", support: "Support", coverage: "Medical Coverage", copays: "Copays & Costs", cost: "Cost Estimator", hsa: "HSA Account", fsa: "Dependent Care FSA", docs: "Documents", claims: "Claims & EOBs", profile: "Profile" };
+const BACK = { coverage: "benefits", copays: "benefits", hsa: "benefits", fsa: "benefits", benefitDetail: "benefits", claims: "home", docs: "home", cost: "home", profile: "home" };
+function App() {
+    var _a;
+    const [loading, setLoading] = useState(true);
+    const [tab, setTab] = useState("home");
+    const [benefitId, setBenefitId] = useState(null);
+    const navSet = new Set(NAV.map(n => n.id));
+    const openBenefit = (id) => { setBenefitId(id); setTab("benefitDetail"); };
+    const title = tab === "benefitDetail" ? (((_a = PKG[benefitId]) === null || _a === void 0 ? void 0 : _a.name) || "Benefit") : TITLES[tab];
+    return (React.createElement("div", { style: { fontFamily: "'Noto Sans', -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif", background: C.paper, minHeight: "100vh", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column" } },
+        loading && React.createElement(Splash, { onDone: () => setLoading(false) }),
+        React.createElement("div", { style: { background: C.ink, padding: "13px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 20 } },
+            React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 11 } },
+                React.createElement("img", { src: M_WHITE, alt: "Marsh", style: { height: 26 } }),
+                React.createElement("div", { style: { width: 1, height: 22, background: "rgba(255,255,255,.22)" } }),
+                React.createElement("div", { style: { fontSize: 17, fontWeight: 600, color: "#fff", letterSpacing: "-.01em" } }, title)),
+            React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center" } },
+                !navSet.has(tab) && React.createElement("button", { className: "press", onClick: () => setTab(BACK[tab] || "home"), style: { background: "transparent", border: "1px solid rgba(255,255,255,.3)", borderRadius: 9, padding: "6px 11px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" } }, "← Back"),
+                React.createElement("button", { className: "press", onClick: () => setTab("profile"), style: { width: 34, height: 34, borderRadius: "50%", background: C.sky, border: "none", cursor: "pointer", color: C.ink, fontSize: 12.5, fontWeight: 800 } }, byId("self").initials))),
+        React.createElement("div", { key: tab, className: "page", style: { flex: 1, overflowY: "auto", paddingTop: 16 } },
+            tab === "home" && React.createElement(Home, { setTab: setTab }),
+            tab === "benefits" && React.createElement(Benefits, { setTab: setTab, openBenefit: openBenefit }),
+            tab === "benefitDetail" && React.createElement(BenefitDetail, { id: benefitId }),
+            tab === "coverage" && React.createElement(Coverage, null),
+            tab === "copays" && React.createElement(Copays, null),
+            tab === "findcare" && React.createElement(FindCare, null),
+            tab === "chat" && React.createElement(AskAI, null),
+            tab === "claims" && React.createElement(Claims, null),
+            tab === "cost" && React.createElement(CostEstimator, null),
+            tab === "hsa" && React.createElement(HSAScreen, null),
+            tab === "fsa" && React.createElement(FSAScreen, null),
+            tab === "docs" && React.createElement(Documents, null),
+            tab === "support" && React.createElement(Support, null),
+            tab === "profile" && React.createElement(Profile, null)),
+        React.createElement("div", { style: { background: C.surface, borderTop: `1px solid ${C.line}`, display: "flex", position: "sticky", bottom: 0, zIndex: 20 } }, NAV.map(n => {
+            const on = tab === n.id;
+            return (React.createElement("button", { key: n.id, onClick: () => setTab(n.id), style: { flex: 1, border: "none", background: "transparent", cursor: "pointer", padding: "10px 4px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative" } },
+                on && React.createElement("div", { style: { position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 26, height: 3, background: C.gold, borderRadius: "0 0 3px 3px" } }),
+                React.createElement(Icon, { name: n.icon, size: 20, color: on ? C.ink : C.greyLt, sw: on ? 2.1 : 1.7 }),
+                React.createElement("span", { style: { fontSize: 10, fontWeight: on ? 700 : 500, color: on ? C.ink : C.grey } }, n.label)));
+        })),
+        React.createElement("style", null, `
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+        ::-webkit-scrollbar { display: none; }
+        input::placeholder, textarea::placeholder { color: ${C.grey}; }
+        button { font-family: inherit; }
+        .press { transition: transform .12s ease, opacity .12s ease; }
+        .press:active { transform: scale(.975); opacity: .9; }
+        .page { animation: fadeRise .42s cubic-bezier(.4,0,.2,1); }
+        @keyframes fadeRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        @keyframes dot { 0%,80%,100%{opacity:.3;transform:scale(.8)} 40%{opacity:1;transform:scale(1)} }
+        @keyframes rise { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+        @keyframes mreveal { 0%{clip-path:inset(0 0 100% 0);opacity:0;transform:translateY(10px) scale(.96)} 55%{opacity:1} 100%{clip-path:inset(0 0 0 0);opacity:1;transform:none} }
+        @keyframes mline { from{width:0} to{width:74px} }
+      `)));
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>
