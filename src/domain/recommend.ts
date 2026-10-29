@@ -89,11 +89,12 @@ function scorePlan(
 
 function richnessOf(plan: RatedPlan): number {
   if (plan.line === "medical") {
-    const deductible = plan.highlights.deductibleIndividualCents ?? 0;
-    const oop = plan.highlights.oopIndividualCents ?? deductible;
-    const deductibleScore = 1 - Math.min(deductible, 800_000) / 800_000;
-    const oopScore = 1 - Math.min(oop, 1_000_000) / 1_000_000;
-    return deductibleScore * 0.6 + oopScore * 0.4;
+  const deductible = plan.highlights.deductibleIndividualCents ?? 0;
+  const oop = plan.highlights.oopIndividualCents;
+  const deductibleScore = 1 - Math.min(deductible, 800_000) / 800_000;
+  if (oop === undefined) return deductibleScore;
+  const oopScore = 1 - Math.min(oop, 1_000_000) / 1_000_000;
+  return deductibleScore * 0.6 + oopScore * 0.4;
   }
   const annualMax = plan.highlights.annualMaxCents ?? 100_000;
   return Math.min(annualMax, 300_000) / 300_000;
@@ -124,10 +125,12 @@ function reasonsFor(plan: RatedPlan, alternative: RatedPlan | undefined, prefere
   if (plan.highlights.hsaEligible && preferences.hsaPreference) {
     reasons.push("The plan is HSA-eligible, which matches the group's preference.");
   }
-  if (plan.highlights.deductibleIndividualCents !== undefined && plan.line === "medical") {
+  if (plan.highlights.deductibleIndividualCents !== undefined && plan.line === "medical" && plan.highlights.oopIndividualCents !== undefined) {
     reasons.push(
-      `Individual deductible is ${formatUsd(plan.highlights.deductibleIndividualCents)} and the out-of-pocket maximum is ${formatUsd(plan.highlights.oopIndividualCents ?? 0)}.`,
+      `Individual deductible is ${formatUsd(plan.highlights.deductibleIndividualCents)} and the out-of-pocket maximum is ${formatUsd(plan.highlights.oopIndividualCents)}.`,
     );
+  } else if (plan.highlights.deductibleIndividualCents !== undefined && plan.line === "medical") {
+    reasons.push(`The plan name publishes an individual deductible of ${formatUsd(plan.highlights.deductibleIndividualCents)}.`);
   }
   if (plan.rateBasis === "illustrative_sample") {
     reasons.push("These rates are illustrative sample tables, not a carrier filing.");

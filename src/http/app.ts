@@ -347,6 +347,8 @@ export async function buildApp(deps: {
         areas: await store.listAreas(),
         effectiveDate,
         contribution,
+        employerZip: group.zip,
+        ratingRegionByZip: await store.ratingRegionMap(),
       });
     } catch (error) {
       throw new HttpError(422, "quote_failed", error instanceof Error ? error.message : "Quote failed");
@@ -692,6 +694,7 @@ function publicCatalogPlan(plan: Plan) {
       hsa_eligible: plan.hsaEligible,
       base_rate_cents: plan.baseRateCents,
       rate_basis: plan.rateBasis,
+      rate_label: plan.rateLabel ?? null,
     };
   }
   return {
@@ -704,6 +707,7 @@ function publicCatalogPlan(plan: Plan) {
     annual_max_cents: plan.annualMaxCents,
     tier_rates_cents: plan.tierRatesCents,
     rate_basis: plan.rateBasis,
+    rate_label: plan.rateLabel ?? null,
   };
 }
 

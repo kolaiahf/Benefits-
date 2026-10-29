@@ -87,17 +87,80 @@ Contribution modes:
 
 `GET /v1/quotes/{id}?format=csv` downloads the comparison.
 
-## Rate tables
+## What is real, and what is a sample
 
-`POST /v1/plans` and `POST /v1/rating-areas` are admin-only. Medical plans need an age-21 monthly `base_rate_cents`. Dental and vision plans need `tier_rates_cents`. Set `rate_basis` to `agency_loaded`.
+| Data | Label in the product | Source |
+| --- | --- | --- |
+| Blue Shield of California small-group medical, dental, and vision for Q4 2026 | Blue Shield of California, from public filed rates, indicative | Public rate book `A46124GRP-2026Q4-SmallBusinessRateBook.pdf`, effective October 1–December 31, 2026. https://www.blueshieldca.com/en/employer/resources/rates |
+| California ZIP to rating region | Used only for those filed rates | Census 2020 ZCTA-to-county file, plus the rate book's county groupings. Los Angeles uses the book's published region 15 ZIP list; other Los Angeles ZIPs are region 16. |
+| Harbor Sample Health / Dental / Vision | Illustrative sample rates | Built into the repo. Not a carrier filing. |
 
-`POST /v1/catalog/reset-sample` restores the illustrative portfolio.
+Blue Shield rates the whole group from the **employer ZIP**, not each member's home ZIP. California small group does not apply a tobacco factor, so a tobacco flag does not change a filed premium. The age amounts are the cells printed in the book. They are not recomputed from the federal age curve, because that rounding can be off by a cent.
 
-Medical math, per covered person, rounded to the cent:
+Checked against the Q4 2026 book text:
+
+| Plan | Region | Age | Published monthly |
+| --- | --- | --- | --- |
+| Platinum Trio HMO 0/20 OffEx | 1 | 21 | $740.34 |
+| Platinum Trio HMO 0/20 OffEx | 1 | 40 | $946.15 |
+| Platinum Trio HMO 0/20 OffEx | 14 | 21 | $487.36 |
+| Platinum Trio HMO 0/20 OffEx | 19 | 21 | $535.02 |
+| Platinum Trio HMO 0/20 OffEx | 19 | 40 | $683.75 |
+| Platinum Full PPO 250/10 OffEx | 1 | 21 | $830.77 |
+| Platinum Full PPO 250/10 OffEx | 1 | 40 | $1,061.72 |
+| Gold Full PPO 1000/30 OffEx | 19 | 21 | $656.26 |
+| Gold Full PPO 1000/30 OffEx | 19 | 40 | $838.70 |
+| Gold DPPO/$1500/U90 (D714), employee only | 19 | tier | $73.80 |
+| Basic Vision 0/0/120 (V517), employee only | all | tier | $10.50 |
+
+Region 13 has no Trio HMO table in this book. Trio plans are stored for the other 18 regions. Full PPO plans are stored for all 19. CMS Exchange Rate PUFs are not loaded: they exclude California, which is a state-based exchange.
+
+Regenerate the JSON after a new quarter's PDF:
+
+```bash
+pdftotext -layout path/to/rate-book.pdf /tmp/bsca/full.txt
+curl -fsSL -o /tmp/census/zcta.txt \
+  https://www2.census.gov/geo/docs/maps-data/data/rel2020/zcta520/tab20_zcta520_county20_natl.txt
+npm run import:blueshield
+```
+
+## Illustrative rating math
+
+Sample plans still use, per covered person, rounded to the cent:
 
 `base rate × federal age factor × ZIP area factor × tobacco factor (1.5 when tobacco is yes)`
 
-Age factors for 21–64 are the HHS default standard age curve from the CMS market-reforms guidance of February 25, 2013. Ages 0–20 use the child curve in the CMS bulletin of December 16, 2016. Unknown ZIPs use area factor 1.00 and the quote says so. The default small-group maximum is 50 eligible employees. Participation under 75% is a warning, not a block.
+Age factors for 21–64 are the HHS default standard age curve from the CMS market-reforms guidance of February 25, 2013. Ages 0–20 use the child curve in the CMS bulletin of December 16, 2016. Unknown sample ZIPs use area factor 1.00 and the quote says so.
+
+`POST /v1/plans` and `POST /v1/rating-areas` are admin-only. `POST /v1/catalog/reset-sample` restores the illustrative portfolio and removes the filed import until the next boot. The default small-group maximum is 50 eligible employees. Participation under 75% is a warning, not a block.
+
+## Vercel and Supabase
+
+The repo is set up for a Vercel preview: `vercel.json` builds the console and routes `/v1`, `/health`, and `/docs` to `api/index.ts`. The database is whatever `DATABASE_URL` points at.
+
+For Supabase Postgres, set `DATABASE_URL` to the **pooler** connection string (port 6543) from Project Settings → Database. Do not commit it. Also set:
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | `file:./data/agency.db` locally, or a Supabase Postgres URI in preview |
+| `APP_SECRET` | production | 32+ characters. Encrypts Finch tokens |
+| `SEED_BROKER_EMAIL` | first boot | Broker created when the user table is empty |
+| `SEED_BROKER_PASSWORD` | production | 12+ characters, and not `demo1234` |
+| `SEED_BROKER_NAME` | no | Display name. Defaults to Avery Chen |
+| `WEB_ORIGIN` | local dev | CORS origin. Defaults to `http://localhost:5173` |
+| `FINCH_CLIENT_ID` | no | Finch sandbox app. Blank keeps CSV census working |
+| `FINCH_CLIENT_SECRET` | no | Finch sandbox secret |
+| `FINCH_REDIRECT_URI` | with Finch | Must match the Finch dashboard. Use the preview origin plus `/finch/callback` |
+| `FINCH_API_BASE` | no | Defaults to `https://api.tryfinch.com` |
+| `FINCH_SANDBOX` | no | `finch` or `provider` |
+| `AI_BASE_URL` | no | OpenAI-compatible chat endpoint |
+| `AI_API_KEY` | no | Omit to keep the template narrative |
+| `AI_MODEL` | no | Defaults to `gpt-4o-mini` |
+| `BCRYPT_ROUNDS` | no | Defaults to 10 |
+| `PORT` / `HOST` | local only | API bind address. Ignored on Vercel |
+| `NODE_ENV` | production on Vercel | Turns on the secret and password checks |
+
+No Supabase anon key or service role is required. Harbor talks to Postgres with `DATABASE_URL` only.
 
 ## Finch
 
@@ -132,4 +195,4 @@ npm run typecheck
 npm run build:web
 ```
 
-The database is SQLite through libSQL (`DATABASE_URL=file:./data/agency.db`). Point it at a `libsql://` URL for a hosted database. Do not commit `.env`.
+Local development uses SQLite through libSQL (`DATABASE_URL=file:./data/agency.db`). A `postgres://` or `postgresql://` URL, including Supabase's pooler, uses Postgres instead. Do not commit `.env`.

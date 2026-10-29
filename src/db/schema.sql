@@ -85,6 +85,13 @@ CREATE TABLE IF NOT EXISTS plans (
   active INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS rating_regions (
+  zip TEXT PRIMARY KEY,
+  state TEXT NOT NULL,
+  region TEXT NOT NULL,
+  source TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS area_factors (
   zip TEXT PRIMARY KEY,
   state TEXT NOT NULL,

@@ -15,7 +15,10 @@ export type Tier = (typeof TIERS)[number];
 export const METALS = ["bronze", "silver", "gold", "platinum"] as const;
 export type Metal = (typeof METALS)[number];
 
-export type RateBasis = "illustrative_sample" | "agency_loaded";
+export type RateBasis = "illustrative_sample" | "agency_loaded" | "blue_shield_ca_filed";
+
+export const BLUE_SHIELD_FILED_LABEL =
+  "Blue Shield of California, from public filed rates, indicative";
 
 export interface CensusMember {
   id: string;
@@ -49,16 +52,19 @@ export interface MedicalPlan {
   planType: "PPO" | "HMO" | "EPO" | "HDHP";
   deductibleIndividualCents: number;
   deductibleFamilyCents: number;
-  oopIndividualCents: number;
-  coinsurance: number;
-  pcpCopayCents: number;
-  specialistCopayCents: number;
-  rxGenericCents: number;
+  oopIndividualCents: number | null;
+  coinsurance: number | null;
+  pcpCopayCents: number | null;
+  specialistCopayCents: number | null;
+  rxGenericCents: number | null;
   hsaEligible: boolean;
-  /** Monthly premium at age 21, area factor 1, non-tobacco, in cents. */
+  /** Monthly premium at age 21 before area and tobacco, in cents. Ignored when published age rates are present. */
   baseRateCents: number;
-  actuarialValue: number;
+  actuarialValue: number | null;
   rateBasis: RateBasis;
+  rateLabel?: string;
+  /** Rating region -> age band ("0-14", "21", "64+") -> monthly cents. Published, not curve-derived. */
+  publishedAgeCents?: Record<string, Record<string, number>>;
 }
 
 export interface AncillaryPlan {
@@ -72,8 +78,11 @@ export interface AncillaryPlan {
   preventive: string;
   summary: string;
   tierRatesCents: Record<Tier, number>;
+  /** Rating region -> tier rates. When set, these replace tierRatesCents and are not area-adjusted. */
+  tierRatesByRegion?: Record<string, Record<Tier, number>>;
   richness: number;
   rateBasis: RateBasis;
+  rateLabel?: string;
 }
 
 export type Plan = MedicalPlan | AncillaryPlan;
@@ -114,6 +123,7 @@ export interface RatedPlan {
   name: string;
   carrier: string;
   rateBasis: RateBasis;
+  rateLabel?: string;
   monthlyPremiumCents: number;
   annualPremiumCents: number;
   employerMonthlyCents: number;
@@ -147,6 +157,7 @@ export interface QuoteResult {
   eligibleEmployees: number;
   participation: number;
   smallGroupMax: number;
+  ratingRegion: string | null;
   methodology: {
     medical: string;
     ancillary: string;
