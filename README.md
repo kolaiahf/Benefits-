@@ -2,7 +2,7 @@
 
 Open-source general agency for small-group **medical, dental, and vision** quoting. The HTTP API is the product. The browser is a console on top of it.
 
-Harbor is GPL-3.0-only. See [LICENSE](LICENSE).
+The visible name, mark, logo, and colors come from [`src/brand.ts`](src/brand.ts). Harbor is the neutral placeholder. Set `BRAND_PRODUCT_NAME`, `BRAND_AGENCY_NAME`, `BRAND_LOGO_URL`, and `BRAND_COLOR_*` to replace it. The project is GPL-3.0-only. See [LICENSE](LICENSE).
 
 ## What it does
 
@@ -25,49 +25,48 @@ npm ci
 npm run dev
 ```
 
-In a second terminal:
+Open http://localhost:3000. With no Supabase keys, local password sign-in is `broker@example.com` / `demo1234`. That route is off in production.
+
+API docs: http://localhost:3000/docs
+
+OpenAPI: http://localhost:3000/v1/openapi.json
+
+To run the API process by itself (port 8787) and the older Vite console (port 5173):
 
 ```bash
+npm run dev:api
 npm run dev:web
 ```
 
-Open http://localhost:5173 and sign in as `broker@example.com` / `demo1234`.
-
-API docs: http://localhost:8787/docs
-
-OpenAPI: http://localhost:8787/v1/openapi.json
-
-Production refuses to boot on the default broker password. Set `APP_SECRET` (32+ characters) and `SEED_BROKER_PASSWORD` (12+ characters).
-
 ```bash
-docker build -t harbor-agency .
-docker run --rm -p 8787:8787 \
+docker build -t agency .
+docker run --rm -p 3000:3000 \
   -e APP_SECRET="$(openssl rand -base64 32)" \
-  -e SEED_BROKER_PASSWORD="$(openssl rand -base64 18)" \
-  -e SEED_BROKER_EMAIL=you@agency.example \
-  -v harbor-data:/app/data \
-  harbor-agency
+  -e DATABASE_URL="postgresql://postgres.pdqxwncosrrlzhqlvofd:[PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres" \
+  -e NEXT_PUBLIC_SUPABASE_URL="https://pdqxwncosrrlzhqlvofd.supabase.co" \
+  -e NEXT_PUBLIC_SUPABASE_ANON_KEY="[ANON_KEY]" \
+  agency
 ```
 
-The image serves the console and the API on port 8787.
+The image serves the console and the API on port 3000. Supabase keys are read at runtime.
 
 ## Quote from the API
 
 ```bash
-TOKEN=$(curl -s -X POST localhost:8787/v1/auth/login \
+TOKEN=$(curl -s -X POST localhost:3000/v1/auth/login \
   -H 'content-type: application/json' \
   -d '{"email":"broker@example.com","password":"demo1234"}' | jq -r .token)
 
-GROUP=$(curl -s -X POST localhost:8787/v1/groups \
+GROUP=$(curl -s -X POST localhost:3000/v1/groups \
   -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
   -d '{"legal_name":"Northwind Studio","state":"CA","zip":"92101","effective_date":"2026-07-01"}' \
   | jq -r .group.id)
 
-curl -s -X PUT "localhost:8787/v1/groups/$GROUP/census" \
+curl -s -X PUT "localhost:3000/v1/groups/$GROUP/census" \
   -H "authorization: Bearer $TOKEN" -H 'content-type: text/csv' \
   --data-binary @examples/northwind-census.csv
 
-curl -s -X POST "localhost:8787/v1/groups/$GROUP/quotes" \
+curl -s -X POST "localhost:3000/v1/groups/$GROUP/quotes" \
   -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
   -H 'idempotency-key: northwind-1' \
   -d '{"contribution":{"mode":"percent_of_premium","employer_percent":75},"preferences":{"prioritize":"balanced"}}'
@@ -136,31 +135,58 @@ Age factors for 21–64 are the HHS default standard age curve from the CMS mark
 
 ## Vercel and Supabase
 
-The repo is set up for a Vercel preview: `vercel.json` builds the console and routes `/v1`, `/health`, and `/docs` to `api/index.ts`. The database is whatever `DATABASE_URL` points at.
+The app is Next.js. Vercel detects it from `next.config.ts`. Do not add an `outputDirectory` override. `/`, `/login`, `/signup`, `/groups`, and `/finch/callback` are the console. `/v1`, `/health`, and `/docs` are served by Next route handlers that call the same API used in tests.
 
-For Supabase Postgres, set `DATABASE_URL` to the **pooler** connection string (port 6543) from Project Settings → Database. Do not commit it. Also set:
+Supabase project ref: `pdqxwncosrrlzhqlvofd`, region `us-west-1`.
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `DATABASE_URL` | yes | `file:./data/agency.db` locally, or a Supabase Postgres URI in preview |
+| `DATABASE_URL` | production | Postgres pooler URI, port 6543. Local default is `file:./data/agency.db` |
+| `NEXT_PUBLIC_SUPABASE_URL` | production | `https://pdqxwncosrrlzhqlvofd.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | production | Supabase anon key. Public in the browser. Never the service role |
+| `SUPABASE_URL` | no | Server alias for the project URL |
+| `SUPABASE_ANON_KEY` | no | Server alias for the anon key |
 | `APP_SECRET` | production | 32+ characters. Encrypts Finch tokens |
-| `SEED_BROKER_EMAIL` | first boot | Broker created when the user table is empty |
-| `SEED_BROKER_PASSWORD` | production | 12+ characters, and not `demo1234` |
+| `SEED_BROKER_EMAIL` | local password mode | First user when the table is empty |
+| `SEED_BROKER_PASSWORD` | only if you seed a password user | 12+ characters in production, and not `demo1234` |
 | `SEED_BROKER_NAME` | no | Display name. Defaults to Avery Chen |
-| `WEB_ORIGIN` | local dev | CORS origin. Defaults to `http://localhost:5173` |
-| `FINCH_CLIENT_ID` | no | Finch sandbox app. Blank keeps CSV census working |
-| `FINCH_CLIENT_SECRET` | no | Finch sandbox secret |
-| `FINCH_REDIRECT_URI` | with Finch | Must match the Finch dashboard. Use the preview origin plus `/finch/callback` |
+| `WEB_ORIGIN` | split dev servers | CORS origin. Defaults to `http://localhost:3000` |
+| `AUTH_MODE` | no | `password` or `supabase`. Production always uses Supabase |
+| `FINCH_CLIENT_ID` | no | Finch app. Blank keeps CSV census working |
+| `FINCH_CLIENT_SECRET` | no | Finch secret |
+| `FINCH_REDIRECT_URI` | with Finch | Must match the Finch dashboard, origin plus `/finch/callback` |
 | `FINCH_API_BASE` | no | Defaults to `https://api.tryfinch.com` |
 | `FINCH_SANDBOX` | no | `finch` or `provider` |
 | `AI_BASE_URL` | no | OpenAI-compatible chat endpoint |
 | `AI_API_KEY` | no | Omit to keep the template narrative |
 | `AI_MODEL` | no | Defaults to `gpt-4o-mini` |
 | `BCRYPT_ROUNDS` | no | Defaults to 10 |
-| `PORT` / `HOST` | local only | API bind address. Ignored on Vercel |
-| `NODE_ENV` | production on Vercel | Turns on the secret and password checks |
+| `PORT` / `HOST` | local API process | Ignored by Vercel |
+| `NODE_ENV` | set by Vercel | Production requires the Supabase and Postgres settings |
+| `BRAND_PRODUCT_NAME` | no | Replaces the placeholder product name |
+| `BRAND_AGENCY_NAME` | no | Replaces the placeholder agency name |
+| `BRAND_MARK` | no | One to three characters shown when no logo is set |
+| `BRAND_LOGO_URL` | no | `https` URL or a site path. `javascript:` URLs are ignored |
+| `BRAND_COLOR_INK` | no | `#rgb` or `#rrggbb` |
+| `BRAND_COLOR_MUTED` | no | Secondary text |
+| `BRAND_COLOR_PAPER` | no | Page background |
+| `BRAND_COLOR_PANEL` | no | Card background |
+| `BRAND_COLOR_LINE` | no | Borders |
+| `BRAND_COLOR_ACCENT` | no | Primary buttons |
+| `BRAND_COLOR_ACCENT_INK` | no | Links |
+| `BRAND_COLOR_KICKER` | no | Small headings |
+| `BRAND_COLOR_KICKER_WASH` | no | Notice background |
+| `BRAND_COLOR_DANGER` | no | Errors |
+| `BRAND_COLOR_RAIL` | no | Sidebar |
+| `BRAND_COLOR_RAIL_INK` | no | Sidebar text |
+| `BRAND_COLOR_RAIL_MUTED` | no | Sidebar secondary text |
+| `BRAND_COLOR_MARK` | no | Monogram background |
 
-No Supabase anon key or service role is required. Harbor talks to Postgres with `DATABASE_URL` only.
+Sign-up and sign-in use Supabase Auth. The first account becomes the agency admin. Later accounts are brokers and only see their own groups. A verified access token is checked with `GET /auth/v1/user`, then the broker row is stored in Postgres. Groups, census rows, quotes, and Finch connections (tokens encrypted with `APP_SECRET`) are in the same database. On boot the app creates tables and turns on row level security with no anon policies, so the public Supabase API cannot read them. The server connects as the database owner.
+
+In the Supabase dashboard, set Site URL to the Vercel origin and add `https://<deployment>/auth/callback` and `http://localhost:3000/auth/callback` to the redirect allow list. If email confirmation is on, new accounts see a “check your email” message until they open the link. Turn confirmation off only if you want a session immediately after sign-up.
+
+Copy the database URI from Project Settings → Database → Connection string → Transaction pooler. If that host differs from `aws-0-us-west-1.pooler.supabase.com`, use the dashboard value. Session mode on port 5432 is the fallback if the pooler rejects a query.
 
 ## Finch
 
@@ -169,15 +195,15 @@ Create an application at https://dashboard.tryfinch.com and set:
 ```
 FINCH_CLIENT_ID
 FINCH_CLIENT_SECRET
-FINCH_REDIRECT_URI=http://localhost:5173/finch/callback
+FINCH_REDIRECT_URI=http://localhost:3000/finch/callback
 FINCH_SANDBOX=finch
 ```
 
-The redirect URI must match the Finch dashboard. Harbor requests `company`, `directory`, `individual`, `employment`, and `benefits`.
+The redirect URI must match the Finch dashboard. The app requests `company`, `directory`, `individual`, `employment`, and `benefits`.
 
 `POST /v1/groups/{id}/finch/session` returns a `connect_url`. After the employer finishes Finch Connect, the browser lands on `/finch/callback` and the console exchanges the code (`POST /v1/groups/{id}/finch/exchange`) and imports the census (`POST /v1/groups/{id}/finch/sync`).
 
-Access tokens are encrypted at rest with `APP_SECRET` (AES-256-GCM). They are not written to logs. Finch money amounts are treated as cents and annualized from the income unit. Benefit-plan reads use `/employer/plans`, `/employer/plans-enrollments`, and `/employer/plans-dependents`. If that product is not enabled, Harbor still imports the payroll census and tries the deductions endpoint.
+Access tokens are encrypted at rest with `APP_SECRET` (AES-256-GCM). They are not written to logs. Finch money amounts are treated as cents and annualized from the income unit. Benefit-plan reads use `/employer/plans`, `/employer/plans-enrollments`, and `/employer/plans-dependents`. If that product is not enabled, the app still imports the payroll census and tries the deductions endpoint.
 
 Without Finch credentials the quote flow works from a CSV. The payroll screen explains the missing configuration instead of failing the server.
 
@@ -192,7 +218,7 @@ Set `AI_API_KEY` to ask an OpenAI-compatible chat model (`AI_BASE_URL`, `AI_MODE
 ```bash
 npm test
 npm run typecheck
-npm run build:web
+npm run build
 ```
 
-Local development uses SQLite through libSQL (`DATABASE_URL=file:./data/agency.db`). A `postgres://` or `postgresql://` URL, including Supabase's pooler, uses Postgres instead. Do not commit `.env`.
+Local development uses SQLite through libSQL (`DATABASE_URL=file:./data/agency.db`). A `postgres://` or `postgresql://` URL, including the Supabase pooler, uses Postgres instead. Production refuses to boot on SQLite. Do not commit `.env`.

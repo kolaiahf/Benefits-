@@ -1,3 +1,4 @@
+export const schemaSql = `
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL UNIQUE,
@@ -115,3 +116,4 @@ CREATE TABLE IF NOT EXISTS quotes (
 );
 
 CREATE INDEX IF NOT EXISTS quotes_group_idx ON quotes(group_id);
+`;

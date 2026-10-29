@@ -1,13 +1,13 @@
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import bcrypt from "bcryptjs";
-import { createRequire } from "node:module";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { z, ZodError } from "zod";
 import { narrateRecommendation } from "../ai/narrate.js";
+import { AuthProviderError, isJwt, userFromSupabaseAccessToken } from "../auth/supabaseUser.js";
+import { loadBrand } from "../brand.js";
 import { finchConfigured, type AppConfig } from "../config.js";
 import { apiKey, encryptString, decryptString, randomToken, sha256 } from "../crypto.js";
 import { sampleAreaFactors, samplePlans } from "../domain/catalog.js";
@@ -22,9 +22,8 @@ import { pullFinchCensus } from "../finch/sync.js";
 import { openApiDocument } from "./openapi.js";
 import { draftFromPublic, publicMember, publicQuoteDocument, quoteCsv, type PublicQuote } from "./serialize.js";
 
-const require = createRequire(import.meta.url);
-const swaggerDir = dirname(require.resolve("swagger-ui-dist/package.json"));
-const webDist = join(dirname(fileURLToPath(import.meta.url)), "../../web/dist");
+const webDist = join(process.cwd(), "web/dist");
+const swaggerDir = join(process.cwd(), "node_modules/swagger-ui-dist");
 
 export class HttpError extends Error {
   constructor(
@@ -137,6 +136,9 @@ export async function buildApp(deps: {
         error: { code: "invalid_census", message: error.message, details: error.details },
       });
     }
+    if (error instanceof AuthProviderError) {
+      return reply.code(503).send({ error: { code: "auth_unavailable", message: error.message } });
+    }
     if (error instanceof HttpError) {
       return reply.code(error.status).send({
         error: { code: error.code, message: error.message, details: error.details ?? null },
@@ -167,28 +169,33 @@ export async function buildApp(deps: {
   });
 
   app.addHook("preHandler", async (request) => {
-    request.actor = await actorFrom(request, store);
+    request.actor = await actorFrom(request, store, config);
   });
 
   app.get("/health", async () => {
     await store.countUsers();
-    return { ok: true, service: "harbor-agency" };
+    const brand = loadBrand();
+    const postgres = config.databaseUrl.startsWith("postgres://") || config.databaseUrl.startsWith("postgresql://");
+    return { ok: true, service: brand.serviceName, auth: config.authMode, database: postgres ? "postgres" : "sqlite" };
   });
 
-  app.get("/v1/openapi.json", async () => openApiDocument);
+  app.get("/v1/openapi.json", async () => openApiDocument(loadBrand()));
 
   app.get("/docs", async (_request, reply) => {
-    reply.type("text/html").send(docsHtml);
+    reply.type("text/html").send(docsPage(loadBrand().agencyName));
   });
 
   await app.register(fastifyStatic, { root: swaggerDir, prefix: "/docs/ui/", decorateReply: false });
 
   app.post("/v1/auth/login", async (request, reply) => {
+    if (config.authMode !== "password") {
+      throw new HttpError(404, "not_found", "Password sign-in is turned off. Use the account page.");
+    }
     const ip = request.ip;
     if (tooManyLogins(ip)) throw new HttpError(429, "rate_limited", "Too many login attempts. Try again in a minute.");
     const body = z.object({ email: z.string().email(), password: z.string().min(1) }).parse(request.body);
     const user = await store.findUserByEmail(body.email.toLowerCase());
-    const valid = user ? await bcrypt.compare(body.password, user.passwordHash) : false;
+    const valid = user?.passwordHash.startsWith("$2") ? await bcrypt.compare(body.password, user.passwordHash) : false;
     if (!user || !valid) throw new HttpError(401, "invalid_login", "Email or password is incorrect");
     const token = randomToken(32);
     const now = new Date();
@@ -555,12 +562,13 @@ async function loadGroupId(actor: UserRow, store: Store, id: string) {
   return group;
 }
 
-async function actorFrom(request: FastifyRequest, store: Store): Promise<UserRow | null> {
+async function actorFrom(request: FastifyRequest, store: Store, config: AppConfig): Promise<UserRow | null> {
   const header = request.headers.authorization;
   if (!header?.toLowerCase().startsWith("bearer ")) return null;
   const token = header.slice(7).trim();
   if (!token) return null;
   if (token.startsWith("ag_live_")) return store.findApiKey(sha256(token));
+  if (isJwt(token)) return userFromSupabaseAccessToken(config, store, token);
   const session = await store.findSession(sha256(token));
   if (!session) return null;
   if (Date.parse(session.expiresAt) < Date.now()) return null;
@@ -726,11 +734,12 @@ function headerValue(value: string | string[] | undefined): string | null {
   return value ?? null;
 }
 
-const docsHtml = `<!doctype html>
+function docsPage(agencyName: string): string {
+  return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Harbor Agency API</title>
+  <title>${agencyName} API</title>
   <link rel="stylesheet" href="/docs/ui/swagger-ui.css" />
 </head>
 <body>
@@ -741,3 +750,4 @@ const docsHtml = `<!doctype html>
   </script>
 </body>
 </html>`;
+}

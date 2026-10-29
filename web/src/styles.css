@@ -1,3 +1,4 @@
+/* Color defaults match src/brand.ts. The server overrides them from that file. */
 :root {
   color-scheme: light;
   --ink: #1b1712;
@@ -5,11 +6,15 @@
   --paper: #f3eee6;
   --panel: #fffdf9;
   --line: #e3dacd;
-  --green: #1d6a49;
-  --green-ink: #123c2b;
-  --gold: #8a5a12;
-  --gold-wash: #f8efd8;
+  --accent: #1d6a49;
+  --accent-ink: #123c2b;
+  --kicker: #8a5a12;
+  --kicker-wash: #f8efd8;
   --danger: #8d2e2e;
+  --rail: #241c14;
+  --rail-ink: #f6f1e8;
+  --rail-muted: #cbbba6;
+  --mark: #e7c27a;
   --shadow: 0 18px 40px rgba(48, 32, 12, 0.08);
   font-family: Outfit, "Segoe UI", sans-serif;
   color: var(--ink);
@@ -20,34 +25,36 @@
 body { margin: 0; min-height: 100vh; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
-a { color: var(--green-ink); }
+a { color: var(--accent-ink); }
 
 .app-shell { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
 .rail {
-  background: #241c14;
-  color: #f6f1e8;
+  background: var(--rail);
+  color: var(--rail-ink);
   padding: 28px 22px;
   display: flex;
   flex-direction: column;
   gap: 28px;
 }
 .brand { display: flex; gap: 12px; align-items: center; }
-.mark {
+.mark, .logo {
   width: 36px; height: 36px; border-radius: 10px;
-  background: #e7c27a; color: #241c14;
+  background: var(--mark); color: var(--rail);
   display: grid; place-items: center;
   font-family: Fraunces, Georgia, serif; font-weight: 640;
 }
+.logo { object-fit: contain; background: transparent; }
 .brand strong { display: block; font-size: 18px; letter-spacing: -0.03em; }
-.brand span { color: #cbbba6; font-size: 12px; }
+.brand span { color: var(--rail-muted); font-size: 12px; }
 .rail nav { display: flex; flex-direction: column; gap: 8px; }
 .rail a, .rail button.linkish {
-  color: #f6f1e8; text-decoration: none; background: transparent; border: 0;
+  color: var(--rail-ink); text-decoration: none; background: transparent; border: 0;
   text-align: left; padding: 8px 0; font-weight: 500;
 }
-.rail .quiet { margin-top: auto; color: #cbbba6; font-size: 13px; }
+button.linkish { background: transparent; border: 0; padding: 0; color: var(--accent-ink); font-weight: 640; text-align: left; }
+.rail .quiet { margin-top: auto; color: var(--rail-muted); font-size: 13px; }
 .main { padding: 32px 36px 64px; max-width: 1180px; }
-.kicker { letter-spacing: 0.14em; text-transform: uppercase; font-size: 12px; color: var(--gold); font-weight: 640; margin: 0 0 6px; }
+.kicker { letter-spacing: 0.14em; text-transform: uppercase; font-size: 12px; color: var(--kicker); font-weight: 640; margin: 0 0 6px; }
 h1, h2, h3 { font-family: Fraunces, Georgia, serif; font-weight: 560; letter-spacing: -0.03em; margin: 0; }
 h1 { font-size: 42px; line-height: 1.05; }
 h2 { font-size: 28px; }
@@ -61,7 +68,7 @@ h2 { font-size: 28px; }
   padding: 20px;
 }
 .stack { display: grid; gap: 16px; }
-.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
 label { display: grid; gap: 6px; font-size: 13px; font-weight: 640; }
 input, select, textarea {
   background: white; border: 1px solid var(--line); border-radius: 10px;
@@ -73,7 +80,7 @@ textarea { min-height: 140px; width: 100%; font-family: ui-monospace, monospace;
 button.primary, button.ghost {
   border-radius: 999px; padding: 11px 16px; border: 1px solid transparent; font-weight: 640;
 }
-button.primary { background: var(--green); color: white; }
+button.primary { background: var(--accent); color: white; }
 button.primary:disabled { opacity: 0.55; cursor: wait; }
 button.ghost { background: transparent; border-color: var(--line); }
 
@@ -81,8 +88,8 @@ button.ghost { background: transparent; border-color: var(--line); }
 .login-card { width: min(440px, 100%); display: grid; gap: 16px; }
 .login-card h1 { font-size: 40px; }
 .error { background: #fdecec; color: var(--danger); border-radius: 12px; padding: 10px 12px; }
-.banner { background: var(--gold-wash); color: #5c3d09; border-radius: 12px; padding: 12px 14px; line-height: 1.45; }
-.ok { background: #e7f4ec; color: var(--green-ink); border-radius: 12px; padding: 12px 14px; }
+.banner { background: var(--kicker-wash); color: #5c3d09; border-radius: 12px; padding: 12px 14px; line-height: 1.45; }
+.ok { background: #e7f4ec; color: var(--accent-ink); border-radius: 12px; padding: 12px 14px; }
 
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
 .group-card { display: block; text-decoration: none; color: inherit; }
@@ -96,7 +103,7 @@ button.ghost { background: transparent; border-color: var(--line); }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-.pill { display: inline-block; border-radius: 999px; padding: 2px 8px; background: #e7f4ec; color: var(--green-ink); font-size: 12px; font-weight: 640; }
+.pill { display: inline-block; border-radius: 999px; padding: 2px 8px; background: #e7f4ec; color: var(--accent-ink); font-size: 12px; font-weight: 640; }
 .nums td:nth-child(n+4), .nums th:nth-child(n+4) { text-align: right; }
 
 .narrative { font-size: 17px; line-height: 1.55; }
