@@ -1,0 +1,8 @@
+subscriber_id,relationship,first_name,last_name,date_of_birth,zip,gender,tobacco,annual_salary,email,waived
+E1,self,Mina,Cho,1986-07-01,92101,female,no,120000,mina@example.com,no
+E1,spouse,Owen,Cho,1988-01-01,92101,male,no,,,no
+E1,child,Ada,Cho,2016-01-01,92101,female,no,,,no
+E1,child,Bea,Cho,2018-06-01,92101,female,no,,,no
+E1,child,Cal,Cho,2020-01-01,92101,male,no,,,no
+E1,child,Dee,Cho,2022-01-01,92101,female,no,,,no
+E2,self,Ren,Park,1990-02-02,92101,male,yes,90000,ren@example.com,yes
