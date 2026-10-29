@@ -1,4 +1,5 @@
-import { createClient, type Client, type InValue } from "@libsql/client";
+import type { InValue } from "@libsql/client";
+import { openDatabase, type SqlClient } from "./sql.js";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -59,10 +60,10 @@ export interface FinchConnectionRow {
 type SqlRow = Record<string, unknown>;
 
 export class Store {
-  private constructor(private readonly db: Client) {}
+  private constructor(private readonly db: SqlClient) {}
 
   static async open(databaseUrl: string): Promise<Store> {
-    const db = createClient({ url: databaseUrl });
+    const db = await openDatabase(databaseUrl);
     const store = new Store(db);
     await store.migrate();
     return store;
@@ -332,6 +333,24 @@ export class Store {
       })),
       "write",
     );
+  }
+
+  async upsertRatingRegions(rows: Array<{ zip: string; region: string }>): Promise<void> {
+    if (!rows.length) return;
+    const chunkSize = 400;
+    for (let index = 0; index < rows.length; index += chunkSize) {
+      const chunk = rows.slice(index, index + chunkSize);
+      await this.db.batch(chunk.map((row) => ({
+        sql: `INSERT INTO rating_regions (zip, state, region, source) VALUES (?, 'CA', ?, 'blue_shield_ca_filed')
+              ON CONFLICT(zip) DO UPDATE SET region = excluded.region, state = excluded.state, source = excluded.source`,
+        args: [row.zip, row.region],
+      })), "write");
+    }
+  }
+
+  async ratingRegionMap(): Promise<Map<string, string>> {
+    const rows = await this.many("SELECT zip, region FROM rating_regions", []);
+    return new Map(rows.map((row) => [String(row.zip), String(row.region)]));
   }
 
   async listAreas(): Promise<AreaFactor[]> {

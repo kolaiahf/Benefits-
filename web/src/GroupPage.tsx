@@ -104,6 +104,7 @@ function CensusTab({ groupId, onError }: { groupId: string; onError: (message: s
 function QuoteTab({ groupId, onError }: { groupId: string; onError: (message: string) => void }) {
   const [plans, setPlans] = useState<CatalogPlan[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
+  const [source, setSource] = useState<"filed" | "sample">("filed");
   const [percent, setPercent] = useState(75);
   const [priority, setPriority] = useState("balanced");
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -112,7 +113,9 @@ function QuoteTab({ groupId, onError }: { groupId: string; onError: (message: st
   useEffect(() => {
     api.plans().then((result) => {
       setPlans(result.plans);
-      setSelected(result.plans.map((plan) => plan.id));
+      const filed = result.plans.some((plan) => plan.rate_basis === "blue_shield_ca_filed");
+      setSource(filed ? "filed" : "sample");
+      setSelected(defaultSelection(result.plans, filed ? "filed" : "sample"));
     }).catch((caught: Error) => onError(caught.message));
   }, [groupId]);
 
@@ -143,6 +146,17 @@ function QuoteTab({ groupId, onError }: { groupId: string; onError: (message: st
     <div className="stack">
       <div className="panel stack">
         <div className="row">
+          <label>Rate source
+            <select value={source} onChange={(event) => {
+              const next = event.target.value === "sample" ? "sample" : "filed";
+              setSource(next);
+              setSelected(defaultSelection(plans, next));
+              setQuote(null);
+            }}>
+              <option value="filed">Blue Shield of California filed</option>
+              <option value="sample">Illustrative sample</option>
+            </select>
+          </label>
           <label>Employer percent
             <input type="number" min={0} max={100} value={percent} onChange={(event) => setPercent(Number(event.target.value))} />
           </label>
@@ -158,7 +172,9 @@ function QuoteTab({ groupId, onError }: { groupId: string; onError: (message: st
           </button>
         </div>
         <div className="check-grid">
-          {plans.map((plan) => (
+          {(source === "filed"
+            ? plans.filter((plan) => FILED_DEFAULTS.includes(plan.id))
+            : plans.filter((plan) => plan.rate_basis === "illustrative_sample")).map((plan) => (
             <label key={plan.id}>
               <input type="checkbox" checked={selected.includes(plan.id)} onChange={() => toggle(plan.id)} />
               {plan.line} · {plan.name}
@@ -168,8 +184,11 @@ function QuoteTab({ groupId, onError }: { groupId: string; onError: (message: st
       </div>
       {quote && (
         <>
+          {quote.filed && (
+            <div className="ok">Blue Shield of California, from public filed rates, indicative. Q4 2026 (October 1–December 31). Employer rating region {quote.rating_region ?? "unknown"}.</div>
+          )}
           {quote.illustrative && (
-            <div className="banner">Illustrative sample rates. Load your carrier rate tables before this quote is presented as bindable.</div>
+            <div className="banner">Illustrative sample rates. These are not a carrier filing.</div>
           )}
           {quote.warnings.map((warning) => <div key={warning.code} className="banner">{warning.message}</div>)}
           <section className="panel stack">
@@ -218,6 +237,23 @@ function QuoteTab({ groupId, onError }: { groupId: string; onError: (message: st
       )}
     </div>
   );
+}
+
+const FILED_DEFAULTS = [
+  "bsc-2026q4-platinum-full-ppo-250-10-offex",
+  "bsc-2026q4-gold-full-ppo-1000-30-offex",
+  "bsc-2026q4-silver-full-ppo-2100-75-offex",
+  "bsc-2026q4-bronze-full-ppo-6500-70-offex",
+  "bsc-2026q4-platinum-trio-hmo-0-20-offex",
+  "bsc-2026q4-d714",
+  "bsc-2026q4-v517",
+];
+
+function defaultSelection(plans: CatalogPlan[], source: "filed" | "sample"): string[] {
+  const pool = plans.filter((plan) => source === "filed" ? plan.rate_basis === "blue_shield_ca_filed" : plan.rate_basis === "illustrative_sample");
+  if (source === "sample") return pool.map((plan) => plan.id);
+  const preferred = pool.filter((plan) => FILED_DEFAULTS.includes(plan.id)).map((plan) => plan.id);
+  return preferred.length ? preferred : pool.slice(0, 8).map((plan) => plan.id);
 }
 
 function Households({ quote }: { quote: Quote }) {

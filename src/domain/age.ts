@@ -59,6 +59,12 @@ const FACTOR_BY_AGE: Record<number, number> = {
   63: 2.952,
 };
 
+export function ageBand(age: number): string {
+  if (age <= 14) return "0-14";
+  if (age >= 64) return "64+";
+  return String(age);
+}
+
 export function federalAgeFactor(age: number): number {
   if (!Number.isInteger(age) || age < 0 || age > 120) {
     throw new Error(`Age ${age} is outside the rating range 0–120`);

@@ -45,6 +45,7 @@ export interface RatedPlan {
   name: string;
   carrier: string;
   rate_basis: string;
+  rate_label: string | null;
   monthly_premium_cents: number;
   employer_monthly_cents: number;
   employee_monthly_cents: number;
@@ -70,6 +71,8 @@ export interface RatedPlan {
 export interface Quote {
   id: string;
   illustrative: boolean;
+  filed: boolean;
+  rating_region: string | null;
   effective_date: string;
   enrolled_employees: number;
   eligible_employees: number;
@@ -104,6 +107,7 @@ export interface CatalogPlan {
   name: string;
   carrier: string;
   rate_basis: string;
+  rate_label: string | null;
 }
 
 export interface FinchStatus {

@@ -1,4 +1,4 @@
-import { cappedChildIds, federalAgeFactor } from "./age.js";
+import { ageBand, cappedChildIds, federalAgeFactor } from "./age.js";
 import { groupHouseholds, householdTier, memberAge } from "./census.js";
 import { roundCents } from "./money.js";
 import type {
@@ -27,6 +27,9 @@ export interface RateInput {
   effectiveDate: string;
   contribution: Contribution;
   smallGroupMax?: number;
+  /** Employer ZIP. Blue Shield small-group rates use this location, not each member's home ZIP. */
+  employerZip?: string;
+  ratingRegionByZip?: ReadonlyMap<string, string>;
 }
 
 export function rateQuote(input: RateInput): QuoteResult {
@@ -51,7 +54,18 @@ export function rateQuote(input: RateInput): QuoteResult {
     });
   }
   const areaByZip = new Map(input.areas.map((area) => [area.zip, area]));
-  const plans = input.plans.map((plan) => ratePlan(plan, input.members, areaByZip, input.effectiveDate, input.contribution));
+  const ratingRegion = input.employerZip ? input.ratingRegionByZip?.get(input.employerZip) ?? null : null;
+  if (input.plans.some((plan) => plan.rateBasis === "blue_shield_ca_filed") && !ratingRegion) {
+    warnings.push({
+      code: "rating_region_unknown",
+      message: `No California rating region is loaded for employer ZIP ${input.employerZip ?? "(missing)"}. Filed Blue Shield plans were not rated.`,
+    });
+  }
+  const plans = input.plans.flatMap((plan) => {
+    const rated = ratePlan(plan, input.members, areaByZip, input.effectiveDate, input.contribution, ratingRegion);
+    return rated ? [rated] : [];
+  });
+  if (!plans.length) throw new Error("None of the selected plans could be rated for this employer ZIP");
   return {
     effectiveDate: input.effectiveDate,
     contribution: input.contribution,
@@ -59,6 +73,7 @@ export function rateQuote(input: RateInput): QuoteResult {
     eligibleEmployees: eligible.length,
     participation,
     smallGroupMax,
+    ratingRegion,
     methodology: {
       medical:
         "Member-level age rating on the federal default age curve. Each member premium is base rate × age factor × area factor × tobacco factor, rounded to the cent, then summed.",
@@ -79,14 +94,17 @@ function ratePlan(
   areas: Map<string, AreaFactor>,
   effectiveDate: string,
   contribution: Contribution,
-): RatedPlan {
+  ratingRegion: string | null,
+): RatedPlan | null {
+  if (plan.rateBasis === "blue_shield_ca_filed" && !ratingRegion) return null;
   const households = [...groupHouseholds(members).values()]
     .map((household) =>
       plan.line === "medical"
-        ? rateMedicalHousehold(plan, household, areas, effectiveDate, contribution)
-        : rateAncillaryHousehold(plan, household, areas, contribution),
+        ? rateMedicalHousehold(plan, household, areas, effectiveDate, contribution, ratingRegion)
+        : rateAncillaryHousehold(plan, household, areas, contribution, ratingRegion),
     )
     .filter((household): household is HouseholdRate => household !== null);
+  if (!households.length) return null;
 
   const monthlyPremiumCents = households.reduce((sum, household) => sum + household.monthlyPremiumCents, 0);
   const employerMonthlyCents = households.reduce((sum, household) => sum + household.employerCents, 0);
@@ -107,6 +125,7 @@ function ratePlan(
     name: plan.name,
     carrier: plan.carrier,
     rateBasis: plan.rateBasis,
+    rateLabel: plan.rateLabel,
     monthlyPremiumCents,
     annualPremiumCents: monthlyPremiumCents * 12,
     employerMonthlyCents,
@@ -121,9 +140,9 @@ function ratePlan(
             planType: plan.planType,
             metal: plan.metal,
             deductibleIndividualCents: plan.deductibleIndividualCents,
-            oopIndividualCents: plan.oopIndividualCents,
-            coinsurance: plan.coinsurance,
-            pcpCopayCents: plan.pcpCopayCents,
+            oopIndividualCents: plan.oopIndividualCents ?? undefined,
+            coinsurance: plan.coinsurance ?? undefined,
+            pcpCopayCents: plan.pcpCopayCents ?? undefined,
             hsaEligible: plan.hsaEligible,
           }
         : {
@@ -141,6 +160,7 @@ function rateMedicalHousehold(
   areas: Map<string, AreaFactor>,
   effectiveDate: string,
   contribution: Contribution,
+  ratingRegion: string | null,
 ): HouseholdRate | null {
   const tier = householdTier(household);
   if (!tier) return null;
@@ -153,12 +173,20 @@ function rateMedicalHousehold(
       .filter((entry) => entry.member.relationship === "child")
       .map((entry) => ({ id: entry.member.id, age: entry.age })),
   );
+  const published = ratingRegion ? plan.publishedAgeCents?.[ratingRegion] : undefined;
+  if (plan.publishedAgeCents && !published) return null;
+  if (published && ages.some(({ member, age }) => !capped.has(member.id) && published[ageBand(age)] === undefined)) {
+    return null;
+  }
   const members = ages.map(({ member, age }) => {
-    const area = areaFactorFor(member.zip, areas);
-    const tobacco = member.tobacco ? 1.5 : 1;
+    const area = published ? 1 : areaFactorFor(member.zip, areas);
+    const tobacco = published ? 1 : member.tobacco ? 1.5 : 1;
     const ageFactor = federalAgeFactor(age);
     const isCapped = capped.has(member.id);
-    const monthlyCents = isCapped ? 0 : roundCents(plan.baseRateCents * ageFactor * area * tobacco);
+    const filedCents = published?.[ageBand(age)];
+    const monthlyCents = isCapped
+      ? 0
+      : filedCents ?? roundCents(plan.baseRateCents * ageFactor * area * tobacco);
     return {
       censusId: member.id,
       name: `${member.firstName} ${member.lastName}`,
@@ -188,14 +216,18 @@ function rateAncillaryHousehold(
   household: CensusMember[],
   areas: Map<string, AreaFactor>,
   contribution: Contribution,
+  ratingRegion: string | null,
 ): HouseholdRate | null {
   const tier = householdTier(household);
   if (!tier) return null;
   const subscriber = household.find((member) => member.relationship === "self");
   if (!subscriber) return null;
-  const area = areaFactorFor(subscriber.zip, areas);
-  const monthlyPremiumCents = roundCents(plan.tierRatesCents[tier] * area);
-  const employeeOnly = roundCents(plan.tierRatesCents.employee_only * area);
+  const regional = ratingRegion ? plan.tierRatesByRegion?.[ratingRegion] : undefined;
+  if (plan.tierRatesByRegion && !regional) return null;
+  const tiers = regional ?? plan.tierRatesCents;
+  const area = regional ? 1 : areaFactorFor(subscriber.zip, areas);
+  const monthlyPremiumCents = roundCents(tiers[tier] * area);
+  const employeeOnly = roundCents(tiers.employee_only * area);
   const split = splitContribution(contribution, monthlyPremiumCents, employeeOnly);
   const covered = household.filter((member) => !member.waived);
   return {
