@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import bcrypt from "bcryptjs";
+import { loadBrand } from "./brand.js";
 import type { AppConfig } from "./config.js";
 import { sampleAreaFactors, samplePlans } from "./domain/catalog.js";
 import type { Plan } from "./domain/types.js";
@@ -37,5 +38,9 @@ export async function seedDatabase(store: Store, config: AppConfig): Promise<voi
       role: "admin",
       createdAt: new Date().toISOString(),
     });
+  }
+  if (config.seedBroker) {
+    const admin = await store.findUserByEmail(config.seed.email);
+    if (admin?.role === "admin") await store.ensureAgency(admin.id, loadBrand().productName);
   }
 }

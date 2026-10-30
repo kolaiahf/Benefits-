@@ -12,6 +12,7 @@ export interface UserRow {
   name: string;
   passwordHash: string;
   role: "admin" | "broker";
+  agencyId: string | null;
   createdAt: string;
 }
 
@@ -72,7 +73,20 @@ export class Store {
       .map((statement) => statement.trim())
       .filter(Boolean);
     await this.db.batch(statements, "write");
+    await this.ensureColumn("users", "agency_id");
+    await this.ensureColumn("groups", "agency_id");
     if (this.db.kind === "postgres") await hardenPostgres(this.db);
+  }
+
+  private async ensureColumn(table: string, column: string): Promise<void> {
+    if (!/^[a-z_]+$/.test(table) || !/^[a-z_]+$/.test(column)) throw new Error("Unexpected column");
+    if (this.db.kind === "postgres") {
+      await this.run(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${column} TEXT`, []);
+      return;
+    }
+    const columns = await this.many(`PRAGMA table_info(${table})`, []);
+    if (columns.some((item) => String(item.name) === column)) return;
+    await this.run(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`, []);
   }
 
   async close(): Promise<void> {
@@ -418,6 +432,83 @@ export class Store {
     return rows.map(mapQuote);
   }
 
+  async ensureAgency(userId: string, name: string): Promise<string> {
+    const user = await this.findUserById(userId);
+    if (!user) throw new Error("User not found");
+    if (user.agencyId) return user.agencyId;
+    const id = crypto.randomUUID();
+    await this.run("INSERT INTO agencies (id, name, created_at) VALUES (?, ?, ?)", [id, name.slice(0, 80), new Date().toISOString()]);
+    await this.run("UPDATE users SET agency_id = ? WHERE id = ?", [id, userId]);
+    return id;
+  }
+
+  async listAgencyUsers(agencyId: string): Promise<UserRow[]> {
+    const rows = await this.many("SELECT * FROM users WHERE agency_id = ? ORDER BY created_at", [agencyId]);
+    return rows.map(mapUser);
+  }
+
+  async setUserAgency(userId: string, agencyId: string | null): Promise<void> {
+    await this.run("UPDATE users SET agency_id = ? WHERE id = ?", [agencyId, userId]);
+  }
+
+  async saveHarborQuote(input: {
+    id: string;
+    agencyId: string | null;
+    ownerId: string;
+    employerName: string;
+    payloadJson: string;
+    createdAt: string;
+  }): Promise<void> {
+    await this.run(
+      `INSERT INTO harbor_quotes (id, agency_id, owner_id, employer_name, payload_json, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [input.id, input.agencyId, input.ownerId, input.employerName, input.payloadJson, input.createdAt],
+    );
+  }
+
+  async replaceHarborQuote(id: string, payloadJson: string, employerName: string): Promise<void> {
+    await this.run("UPDATE harbor_quotes SET payload_json = ?, employer_name = ? WHERE id = ?", [payloadJson, employerName, id]);
+  }
+
+  async listHarborQuotes(actor: { id: string; agencyId: string | null }): Promise<Array<{ id: string; employerName: string; createdAt: string }>> {
+    const rows = actor.agencyId
+      ? await this.many(
+          `SELECT id, employer_name, created_at FROM harbor_quotes
+           WHERE owner_id = ? OR agency_id = ?
+           ORDER BY created_at DESC`,
+          [actor.id, actor.agencyId],
+        )
+      : await this.many(
+          "SELECT id, employer_name, created_at FROM harbor_quotes WHERE owner_id = ? ORDER BY created_at DESC",
+          [actor.id],
+        );
+    return rows.map((row) => ({
+      id: String(row.id),
+      employerName: String(row.employer_name),
+      createdAt: String(row.created_at),
+    }));
+  }
+
+  async getHarborQuote(id: string): Promise<{
+    id: string;
+    agencyId: string | null;
+    ownerId: string;
+    employerName: string;
+    payloadJson: string;
+    createdAt: string;
+  } | null> {
+    const row = await this.one("SELECT * FROM harbor_quotes WHERE id = ?", [id]);
+    if (!row) return null;
+    return {
+      id: String(row.id),
+      agencyId: row.agency_id == null ? null : String(row.agency_id),
+      ownerId: String(row.owner_id),
+      employerName: String(row.employer_name),
+      payloadJson: String(row.payload_json),
+      createdAt: String(row.created_at),
+    };
+  }
+
   private async count(table: string): Promise<number> {
     const row = await this.one(`SELECT COUNT(*) AS c FROM ${table}`, []);
     return Number(row?.c ?? 0);
@@ -445,6 +536,7 @@ function mapUser(row: SqlRow): UserRow {
     name: String(row.name),
     passwordHash: String(row.password_hash),
     role: String(row.role) === "admin" ? "admin" : "broker",
+    agencyId: row.agency_id == null || row.agency_id === "" ? null : String(row.agency_id),
     createdAt: String(row.created_at),
   };
 }

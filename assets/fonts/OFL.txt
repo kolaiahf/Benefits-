@@ -1,0 +1,4 @@
+Newsreader and Noto Sans subsets in this folder are used to draw the proposal PDF.
+They are distributed under the SIL Open Font License, Version 1.1.
+The upstream projects are Newsreader (https://github.com/productiontype/Newsreader)
+and Noto Sans (https://github.com/notofonts/latin-greek-cyrillic).
