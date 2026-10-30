@@ -19,23 +19,15 @@ import type { AncillaryPlan, AreaFactor, Contribution, MedicalPlan, Plan, Recomm
 import type { Store, UserRow } from "../db/store.js";
 import { FinchClient, FinchError } from "../finch/client.js";
 import { pullFinchCensus } from "../finch/sync.js";
+import { HttpError } from "./errors.js";
+import { registerHarborRoutes } from "./harborRoutes.js";
 import { openApiDocument } from "./openapi.js";
 import { draftFromPublic, publicMember, publicQuoteDocument, quoteCsv, type PublicQuote } from "./serialize.js";
 
 const webDist = join(process.cwd(), "web/dist");
 const swaggerDir = join(process.cwd(), "node_modules/swagger-ui-dist");
 
-export class HttpError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string,
-    message: string,
-    readonly details?: unknown,
-  ) {
-    super(message);
-    this.name = "HttpError";
-  }
-}
+export { HttpError } from "./errors.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -520,6 +512,8 @@ export async function buildApp(deps: {
       company: pulled.company,
     };
   });
+
+  registerHarborRoutes(app, config, store);
 
   if (existsSync(join(webDist, "index.html"))) {
     await app.register(fastifyStatic, { root: webDist, prefix: "/" });

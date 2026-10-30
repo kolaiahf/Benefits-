@@ -13,7 +13,7 @@ export function LoginScreen({ initialMode }: { initialMode: "sign-in" | "sign-up
       initialMode={initialMode}
       notice={error ?? ""}
       onSignedIn={() => {
-        const dest = next && next.startsWith("/") && !next.startsWith("//") ? next : "/groups";
+        const dest = next && next.startsWith("/") && !next.startsWith("//") ? next : "/quotes";
         router.push(dest);
         router.refresh();
       }}

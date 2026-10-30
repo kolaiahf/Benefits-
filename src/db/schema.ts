@@ -116,4 +116,22 @@ CREATE TABLE IF NOT EXISTS quotes (
 );
 
 CREATE INDEX IF NOT EXISTS quotes_group_idx ON quotes(group_id);
+
+CREATE TABLE IF NOT EXISTS agencies (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS harbor_quotes (
+  id TEXT PRIMARY KEY,
+  agency_id TEXT,
+  owner_id TEXT NOT NULL,
+  employer_name TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS harbor_quotes_owner_idx ON harbor_quotes(owner_id);
+CREATE INDEX IF NOT EXISTS harbor_quotes_agency_idx ON harbor_quotes(agency_id);
 `;

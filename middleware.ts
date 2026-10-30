@@ -21,7 +21,7 @@ export async function middleware(request: NextRequest) {
   });
   const { data } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
-  const needsUser = path.startsWith("/groups") || path.startsWith("/finch");
+  const needsUser = path.startsWith("/groups") || path.startsWith("/finch") || path.startsWith("/quotes");
   if (needsUser && !data.user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
   }
   if ((path === "/login" || path === "/signup") && data.user) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/groups";
+    redirectUrl.pathname = "/quotes";
     redirectUrl.search = "";
     return NextResponse.redirect(redirectUrl);
   }

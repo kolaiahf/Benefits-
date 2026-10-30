@@ -35,5 +35,5 @@ export async function GET(request: Request) {
 
 function safeNext(value: string | null): string {
   if (value && value.startsWith("/") && !value.startsWith("//")) return value;
-  return "/groups";
+  return "/quotes";
 }

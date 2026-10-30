@@ -1,5 +1,41 @@
 # Harbor Agency
 
+California small-group medical quoting for brokers. The product name **Harbor** lives in [`src/brand.ts`](src/brand.ts) so it can be swapped later.
+
+## Quote screen
+
+```bash
+cp .env.example .env
+npm ci
+npm run dev
+```
+
+Open http://localhost:3000. With no Supabase keys, sign in as `broker@example.com` / `demo1234`.
+
+1. Upload `examples/northwind-coffee.csv` (fake Northwind Coffee Co., 42 employees). Employer ZIP `92101` is rating area 19. Effective date `2026-08-01` falls in the Health Net and Blue Shield quarters that are loaded.
+2. The screen shows total monthly cost, employer vs employee share (default 80% of the employee premium and 50% of dependent premium), a cost scale, and plan rows. Open a row for per-employee rates.
+3. Download the PDF. Nothing is emailed.
+
+`npm test`, `npm run lint`, `npm run typecheck`, and `npm run build` are the checks.
+
+An agency admin can add brokers at `/quotes/team`. The temporary password is shown once. Email delivery (Resend) is not built. `/connect` explains a future Finch census link: pull names, dates of birth, ZIP, and tier only, call Finch `/disconnect` right after a successful pull, and disconnect after 30 days if no pull happens. That connection is not turned on.
+
+### Rate books on file
+
+Regenerate with `npm run import:rates` when the PDFs are available to the script.
+
+| Carrier | What loaded | What is missing |
+| --- | --- | --- |
+| Health Net | PPO plans, all 19 rating areas, July 1–September 30, 2026 | HMO pages, which continue a plan set across columns |
+| Blue Shield of California | Q3 2026 regions 18 and 19 from the attached book, plus the Q4 2026 extract already in the repo | Q3 does not include regions 1–17. Out-of-pocket maximums are not in the rate tables |
+| Sharp Health Plan | Non-mirrored medical tables, October 1–December 31, 2026, stored as area 19 | The book does not name a rating area. Mirrored sheets, riders, and repeated names with a different rate were skipped. Copays are not in the tables |
+| Sutter Health Plus | 16 plans, areas 1–10, effective October 1, 2026 | Areas 11–19. Copays are not in the tables |
+| Kaiser Permanente | HMO sheet for areas 4 and 8, calendar 2026 | Every other rating area. Names are reconstructed from a Tableau PDF |
+
+Member premium is the age-21 base for the employer’s rating area times the federal default age factor, rounded to the cent. A published age cell can differ by about a cent. Anthem, UnitedHealthcare, Western Health Advantage, and CaliforniaChoice are not loaded. Rates are examples, not a quote. The disclaimer stays `[Disclaimer text - needs legal review]`.
+
+The older group console is still at `/groups`. Dental and vision quoting there is separate from this medical screen.
+
 Open-source general agency for small-group **medical, dental, and vision** quoting. The HTTP API is the product. The browser is a console on top of it.
 
 The visible name, mark, logo, and colors come from [`src/brand.ts`](src/brand.ts). Harbor is the neutral placeholder. Set `BRAND_PRODUCT_NAME`, `BRAND_AGENCY_NAME`, `BRAND_LOGO_URL`, and `BRAND_COLOR_*` to replace it. The project is GPL-3.0-only. See [LICENSE](LICENSE).
