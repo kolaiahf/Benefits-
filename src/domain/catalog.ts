@@ -1,3 +1,4 @@
+import { loadBrand } from "../brand.js";
 import type { AncillaryPlan, AreaFactor, MedicalPlan, Plan } from "./types.js";
 
 /**
@@ -5,12 +6,16 @@ import type { AncillaryPlan, AreaFactor, MedicalPlan, Plan } from "./types.js";
  * its own base rates and area factors before a quote is presented as bindable.
  */
 export function samplePlans(): Plan[] {
+  const product = loadBrand().productName;
+  const medicalCarrier = `${product} Sample Health`;
+  const dentalCarrier = `${product} Sample Dental`;
+  const visionCarrier = `${product} Sample Vision`;
   const medical: MedicalPlan[] = [
     {
       id: "med-bronze-hdhp",
       line: "medical",
       name: "Bronze HDHP 7000",
-      carrier: "Harbor Sample Health",
+      carrier: medicalCarrier,
       metal: "bronze",
       planType: "HDHP",
       deductibleIndividualCents: 700_000,
@@ -29,7 +34,7 @@ export function samplePlans(): Plan[] {
       id: "med-silver-ppo",
       line: "medical",
       name: "Silver PPO 2500",
-      carrier: "Harbor Sample Health",
+      carrier: medicalCarrier,
       metal: "silver",
       planType: "PPO",
       deductibleIndividualCents: 250_000,
@@ -48,7 +53,7 @@ export function samplePlans(): Plan[] {
       id: "med-gold-ppo",
       line: "medical",
       name: "Gold PPO 1000",
-      carrier: "Harbor Sample Health",
+      carrier: medicalCarrier,
       metal: "gold",
       planType: "PPO",
       deductibleIndividualCents: 100_000,
@@ -67,7 +72,7 @@ export function samplePlans(): Plan[] {
       id: "med-platinum-ppo",
       line: "medical",
       name: "Platinum PPO 500",
-      carrier: "Harbor Sample Health",
+      carrier: medicalCarrier,
       metal: "platinum",
       planType: "PPO",
       deductibleIndividualCents: 50_000,
@@ -88,7 +93,7 @@ export function samplePlans(): Plan[] {
       id: "dent-ppo-basic",
       line: "dental",
       name: "Dental PPO Basic",
-      carrier: "Harbor Sample Dental",
+      carrier: dentalCarrier,
       planType: "PPO",
       deductibleCents: 5_000,
       annualMaxCents: 100_000,
@@ -107,7 +112,7 @@ export function samplePlans(): Plan[] {
       id: "dent-ppo-plus",
       line: "dental",
       name: "Dental PPO Plus",
-      carrier: "Harbor Sample Dental",
+      carrier: dentalCarrier,
       planType: "PPO",
       deductibleCents: 5_000,
       annualMaxCents: 200_000,
@@ -128,7 +133,7 @@ export function samplePlans(): Plan[] {
       id: "vis-basic",
       line: "vision",
       name: "Vision Basic",
-      carrier: "Harbor Sample Vision",
+      carrier: visionCarrier,
       planType: "PPO",
       deductibleCents: 0,
       annualMaxCents: null,
@@ -147,7 +152,7 @@ export function samplePlans(): Plan[] {
       id: "vis-plus",
       line: "vision",
       name: "Vision Plus",
-      carrier: "Harbor Sample Vision",
+      carrier: visionCarrier,
       planType: "PPO",
       deductibleCents: 0,
       annualMaxCents: null,

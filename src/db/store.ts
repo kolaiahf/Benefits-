@@ -1,13 +1,10 @@
 import type { InValue } from "@libsql/client";
 import { openDatabase, type SqlClient } from "./sql.js";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { hardenPostgres } from "./postgresSecurity.js";
+import { schemaSql } from "./schema.js";
 import type { AreaFactor, Plan } from "../domain/types.js";
 import type { CensusDraft } from "../domain/census.js";
 import type { CensusMember } from "../domain/types.js";
-
-const schemaSql = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "schema.sql"), "utf8");
 
 export interface UserRow {
   id: string;
@@ -75,10 +72,17 @@ export class Store {
       .map((statement) => statement.trim())
       .filter(Boolean);
     await this.db.batch(statements, "write");
+    if (this.db.kind === "postgres") await hardenPostgres(this.db);
   }
 
   async close(): Promise<void> {
     this.db.close();
+  }
+
+  async tableIsProtected(table: string): Promise<boolean> {
+    if (this.db.kind !== "postgres" || !/^[a-z_]+$/.test(table)) return false;
+    const row = await this.one("SELECT relrowsecurity FROM pg_class WHERE relname = ?", [table]);
+    return row?.relrowsecurity === true;
   }
 
   async countUsers(): Promise<number> {
@@ -91,6 +95,32 @@ export class Store {
 
   async countAreas(): Promise<number> {
     return this.count("area_factors");
+  }
+
+  async ensureExternalUser(input: { id: string; email: string; name: string; createdAt: string }): Promise<UserRow> {
+    const email = input.email.toLowerCase();
+    const byId = await this.findUserById(input.id);
+    if (byId) return byId;
+    const byEmail = await this.findUserByEmail(email);
+    if (byEmail) return byEmail;
+    const role = (await this.countUsers()) === 0 ? "admin" : "broker";
+    try {
+      await this.createUser({
+        id: input.id,
+        email,
+        name: input.name.slice(0, 80) || email,
+        passwordHash: "supabase",
+        role,
+        createdAt: input.createdAt,
+      });
+    } catch {
+      const winner = (await this.findUserById(input.id)) ?? (await this.findUserByEmail(email));
+      if (winner) return winner;
+      throw new Error("Could not store the signed-in account");
+    }
+    const created = await this.findUserById(input.id);
+    if (!created) throw new Error("Could not store the signed-in account");
+    return created;
   }
 
   async createUser(input: { id: string; email: string; name: string; passwordHash: string; role: "admin" | "broker"; createdAt: string }): Promise<void> {

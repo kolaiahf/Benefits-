@@ -1,9 +1,11 @@
+"use client";
+
 import { useEffect, useState } from "react";
-import censusCsv from "../../examples/northwind-census.csv?raw";
 import { api, type CatalogPlan, type FinchStatus, type Group, type Member, type Quote } from "./api";
+import { useBrand } from "./brand-context";
 import { usd } from "./format";
 
-export function GroupPage({ groupId }: { groupId: string }) {
+export function GroupPage({ groupId, sampleCensus }: { groupId: string; sampleCensus: string }) {
   const [group, setGroup] = useState<Group | null>(null);
   const [tab, setTab] = useState<"census" | "quote" | "payroll">("census");
   const [error, setError] = useState("");
@@ -31,14 +33,14 @@ export function GroupPage({ groupId }: { groupId: string }) {
           </button>
         ))}
       </div>
-      {tab === "census" && <CensusTab groupId={groupId} onError={setError} />}
+      {tab === "census" && <CensusTab groupId={groupId} sampleCensus={sampleCensus} onError={setError} />}
       {tab === "quote" && <QuoteTab groupId={groupId} onError={setError} />}
       {tab === "payroll" && <PayrollTab groupId={groupId} onError={setError} onSynced={() => setTab("census")} />}
     </div>
   );
 }
 
-function CensusTab({ groupId, onError }: { groupId: string; onError: (message: string) => void }) {
+function CensusTab({ groupId, sampleCensus, onError }: { groupId: string; sampleCensus: string; onError: (message: string) => void }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [notice, setNotice] = useState("");
 
@@ -66,7 +68,7 @@ function CensusTab({ groupId, onError }: { groupId: string; onError: (message: s
   return (
     <div className="stack">
       <div className="row">
-        <button className="primary" type="button" onClick={() => upload(censusCsv)}>Load sample census</button>
+        <button className="primary" type="button" onClick={() => upload(sampleCensus)}>Load sample census</button>
         <label className="ghost">Upload CSV
           <input type="file" accept=".csv,text/csv" onChange={async (event) => {
             const file = event.target.files?.[0];
@@ -281,6 +283,7 @@ function Households({ quote }: { quote: Quote }) {
 }
 
 function PayrollTab({ groupId, onError, onSynced }: { groupId: string; onError: (message: string) => void; onSynced: () => void }) {
+  const brand = useBrand();
   const [status, setStatus] = useState<FinchStatus | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -317,7 +320,7 @@ function PayrollTab({ groupId, onError, onSynced }: { groupId: string; onError: 
   return (
     <div className="panel stack">
       <h2>Payroll and current benefits</h2>
-      <p className="lede">Finch reads the employer directory, dates of birth, income, and benefit elections. Harbor uses that census for the next quote. Medical rates still do not vary by salary.</p>
+      <p className="lede">Finch reads the employer directory, dates of birth, income, and benefit elections. {brand.productName} uses that census for the next quote. Medical rates still do not vary by salary.</p>
       {!status?.configured && (
         <div className="banner">Finch is not configured on this server. Set FINCH_CLIENT_ID, FINCH_CLIENT_SECRET, and FINCH_REDIRECT_URI. Census upload still quotes without payroll.</div>
       )}

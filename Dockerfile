@@ -4,12 +4,13 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npm run build:web
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
 
 ENV NODE_ENV=production
-ENV PORT=8787
-ENV HOST=0.0.0.0
-EXPOSE 8787
+ENV PORT=3000
+EXPOSE 3000
 
-# APP_SECRET and SEED_BROKER_PASSWORD are required when NODE_ENV=production.
-CMD ["npx", "tsx", "src/server.ts"]
+# Runtime configuration, never baked into the image:
+# APP_SECRET, DATABASE_URL, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+CMD ["npx", "next", "start", "-H", "0.0.0.0", "-p", "3000"]

@@ -118,21 +118,38 @@ export interface FinchStatus {
   benefits: { benefits?: Array<{ line: string; name: string; carrier: string | null; enrolled: number; employee_contribution_cents: number | null; employer_contribution_cents: number | null }>; warnings?: string[] } | null;
 }
 
-const TOKEN_KEY = "harbor_token";
+const PASSWORD_TOKEN_KEY = "agency_password_token";
+
+let memoryAccessToken: string | null = null;
+
+export function setPasswordToken(token: string | null): void {
+  if (typeof localStorage === "undefined") return;
+  if (token) localStorage.setItem(PASSWORD_TOKEN_KEY, token);
+  else localStorage.removeItem(PASSWORD_TOKEN_KEY);
+}
+
+export function setAccessToken(token: string | null): void {
+  memoryAccessToken = token;
+}
+
+export function bearerToken(): string | null {
+  if (memoryAccessToken) return memoryAccessToken;
+  if (typeof localStorage === "undefined") return null;
+  return localStorage.getItem(PASSWORD_TOKEN_KEY);
+}
 
 export function authToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return bearerToken();
 }
 
 export function setAuthToken(token: string | null): void {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+  setPasswordToken(token);
 }
 
 async function send<T>(path: string, init: RequestInit = {}, authenticate = true): Promise<T> {
   const headers = new Headers(init.headers);
   if (authenticate) {
-    const token = authToken();
+    const token = bearerToken();
     if (token) headers.set("authorization", `Bearer ${token}`);
   }
   if (init.body && !(init.body instanceof FormData) && !headers.has("content-type")) {

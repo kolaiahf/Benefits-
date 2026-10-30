@@ -1,22 +1,21 @@
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import bcrypt from "bcryptjs";
 import type { AppConfig } from "./config.js";
 import { sampleAreaFactors, samplePlans } from "./domain/catalog.js";
 import type { Plan } from "./domain/types.js";
 import type { Store } from "./db/store.js";
 
-const dataDir = join(dirname(fileURLToPath(import.meta.url)), "data");
+function readData<T>(name: string): T {
+  return JSON.parse(readFileSync(join(process.cwd(), "src/data", name), "utf8")) as T;
+}
 
 export function filedPlans(): Plan[] {
-  const document = JSON.parse(readFileSync(join(dataDir, "blueshield-ca-2026q4.json"), "utf8")) as { plans: Plan[] };
-  return document.plans;
+  return readData<{ plans: Plan[] }>("blueshield-ca-2026q4.json").plans;
 }
 
 export function californiaRatingRegions(): Array<{ zip: string; region: string }> {
-  const map = JSON.parse(readFileSync(join(dataDir, "ca-rating-regions.json"), "utf8")) as Record<string, string>;
-  return Object.entries(map).map(([zip, region]) => ({ zip, region }));
+  return Object.entries(readData<Record<string, string>>("ca-rating-regions.json")).map(([zip, region]) => ({ zip, region }));
 }
 
 export async function seedDatabase(store: Store, config: AppConfig): Promise<void> {
@@ -29,7 +28,7 @@ export async function seedDatabase(store: Store, config: AppConfig): Promise<voi
     await store.upsertRatingRegions(californiaRatingRegions());
   }
   if ((await store.countAreas()) === 0) await store.replaceAreas(sampleAreaFactors());
-  if ((await store.countUsers()) === 0) {
+  if (config.seedBroker && (await store.countUsers()) === 0) {
     await store.createUser({
       id: crypto.randomUUID(),
       email: config.seed.email.toLowerCase(),

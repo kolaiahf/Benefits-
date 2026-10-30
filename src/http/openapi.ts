@@ -1,11 +1,18 @@
-export const openApiDocument = {
+export function openApiDocument(brand: { agencyName: string }) {
+  return {
+    ...document,
+    info: { ...document.info, title: `${brand.agencyName} API` },
+  };
+}
+
+const document = {
   openapi: "3.1.0",
   info: {
-    title: "Harbor Agency API",
+    title: "Agency API",
     version: "1.0.0",
     summary: "API-first small-group medical, dental, and vision quoting for a general agency.",
     description:
-      "Quote small-group medical, dental, and vision from an uploaded census or a Finch payroll connection. Sample rate tables ship with the server and are labeled illustrative_sample. Load carrier rates before presenting a bindable quote. Authenticate with a session token from POST /v1/auth/login or an API key (Authorization: Bearer ag_live_...).",
+      "Quote small-group medical, dental, and vision from an uploaded census or a Finch payroll connection. Sample rate tables ship with the server and are labeled illustrative_sample. Load carrier rates before presenting a bindable quote. The console signs in with Supabase Auth. Other systems send an API key (Authorization: Bearer ag_live_...). POST /v1/auth/login is only available when password sign-in is turned on.",
   },
   servers: [{ url: "/" }],
   components: {
@@ -17,7 +24,7 @@ export const openApiDocument = {
   paths: {
     "/health": { get: { summary: "Liveness and database check", security: [], responses: { "200": { description: "Service is up" } } } },
     "/v1/auth/login": {
-      post: { summary: "Exchange email and password for a bearer session", security: [], responses: { "200": { description: "Session token" } } },
+      post: { summary: "Local password session. Off when Supabase Auth is enabled.", security: [], responses: { "200": { description: "Session token" } } },
     },
     "/v1/me": { get: { summary: "Current broker", responses: { "200": { description: "Profile" } } } },
     "/v1/api-keys": {
