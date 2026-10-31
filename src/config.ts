@@ -1,5 +1,5 @@
 import { readEnv, type Env } from "./env.js";
-import { resolveAuthMode, type AuthMode } from "./publicConfig.js";
+import { isDemoMode, resolveAuthMode, type AuthMode } from "./publicConfig.js";
 
 export interface AppConfig {
   nodeEnv: string;
@@ -10,6 +10,7 @@ export interface AppConfig {
   webOrigin: string;
   bcryptRounds: number;
   authMode: AuthMode;
+  demoMode: boolean;
   seedBroker: boolean;
   supabase: { url: string; anonKey: string };
   seed: { email: string; password: string; name: string };
@@ -48,6 +49,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
     webOrigin: readEnv(env, "WEB_ORIGIN") || "http://localhost:3000",
     bcryptRounds: Number(readEnv(env, "BCRYPT_ROUNDS") || 10),
     authMode,
+    demoMode: isDemoMode(env),
     seedBroker,
     supabase: { url: supabaseUrl, anonKey: supabaseAnonKey },
     seed: {

@@ -8,8 +8,21 @@ export interface PublicAuth {
   passwordLogin: boolean;
 }
 
+/**
+ * Demo mode lets a Vercel preview run with password sign-in and a throwaway sqlite file.
+ * It needs AUTH_MODE=password plus VERCEL_ENV=preview or DEMO_MODE=true, and it never
+ * turns on for a Vercel production deployment.
+ */
+export function isDemoMode(env: Env): boolean {
+  const vercelEnv = readEnv(env, "VERCEL_ENV");
+  if (vercelEnv === "production") return false;
+  if (readEnv(env, "AUTH_MODE") !== "password") return false;
+  const demoFlag = readEnv(env, "DEMO_MODE").toLowerCase();
+  return vercelEnv === "preview" || demoFlag === "true" || demoFlag === "1";
+}
+
 export function resolveAuthMode(env: Env, nodeEnv: string, supabaseConfigured: boolean): AuthMode {
-  if (nodeEnv === "production") return "supabase";
+  if (nodeEnv === "production") return isDemoMode(env) ? "password" : "supabase";
   if (nodeEnv === "test" && readEnv(env, "AUTH_MODE") !== "supabase") return "password";
   const requested = readEnv(env, "AUTH_MODE");
   if (requested === "password") return "password";

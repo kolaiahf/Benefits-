@@ -41,6 +41,8 @@ export async function proxyApiRequest(request: Request, accessToken: string | nu
 
 export function safeBootMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
+  // Our own config checks name the setting but never include its value, so show them as is.
+  if (/^(APP_SECRET must|Set SEED_BROKER_PASSWORD|Demo mode needs)/.test(message)) return message;
   if (message && !/postgres(?:ql)?:|password|secret|api[_-]?key|bearer/i.test(message)) return message;
   return "Server failed to start. Check DATABASE_URL, APP_SECRET, and the Supabase settings.";
 }

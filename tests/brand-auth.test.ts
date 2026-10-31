@@ -209,6 +209,35 @@ describe("production boot", () => {
   });
 });
 
+describe("demo mode", () => {
+  const demo = {
+    NODE_ENV: "production",
+    APP_SECRET: "x".repeat(32),
+    DATABASE_URL: "file:/tmp/agency.db",
+    AUTH_MODE: "password",
+    SEED_BROKER_PASSWORD: "a-unique-demo-pass",
+  };
+
+  it("runs a Vercel preview with password sign-in and a /tmp sqlite file", () => {
+    const config = loadConfig({ ...demo, VERCEL_ENV: "preview" });
+    expect(config.demoMode).toBe(true);
+    expect(config.authMode).toBe("password");
+    expect(() => assertProductionReady(config)).not.toThrow();
+    expect(() => assertProductionReady(loadConfig({ ...demo, VERCEL_ENV: "preview", DATABASE_URL: "file:./data/agency.db" }))).toThrow(/Demo mode/);
+  });
+
+  it("never turns on for Vercel production or without an explicit opt-in", () => {
+    const prod = loadConfig({ ...demo, VERCEL_ENV: "production", DEMO_MODE: "true" });
+    expect(prod.demoMode).toBe(false);
+    expect(prod.authMode).toBe("supabase");
+    expect(() => assertProductionReady(prod)).toThrow(/SUPABASE/);
+    expect(loadConfig(demo).demoMode).toBe(false);
+    expect(loadConfig({ ...demo, DEMO_MODE: "true" }).demoMode).toBe(true);
+    expect(loadConfig({ ...demo, VERCEL_ENV: "preview", AUTH_MODE: "supabase" }).demoMode).toBe(false);
+    expect(() => loadConfig({ ...demo, VERCEL_ENV: "preview", SEED_BROKER_PASSWORD: "short" })).toThrow(/SEED_BROKER_PASSWORD/);
+  });
+});
+
 function walk(directory: string): string[] {
   return readdirSync(directory).flatMap((name) => {
     const path = join(directory, name);

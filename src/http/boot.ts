@@ -27,6 +27,13 @@ export function bootApp(): Promise<RunningApp> {
 
 export function assertProductionReady(config: AppConfig): void {
   if (config.nodeEnv !== "production") return;
+  if (config.demoMode) {
+    const path = config.databaseUrl.startsWith("file:") ? config.databaseUrl.slice("file:".length) : "";
+    if (path !== ":memory:" && !path.startsWith("/tmp/")) {
+      throw new Error("Demo mode needs DATABASE_URL=file:/tmp/<name>.db or file::memory:");
+    }
+    return;
+  }
   if (!config.supabase.url || !config.supabase.anonKey) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required in production");
   }
