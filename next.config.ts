@@ -20,6 +20,8 @@ const nextConfig: NextConfig = {
     "pg",
     "bcryptjs",
     "pdfkit",
+    "light-my-request",
+    "cookie",
   ],
   async headers() {
     return [
